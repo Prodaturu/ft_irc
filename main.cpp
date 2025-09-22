@@ -21,6 +21,27 @@
 
 // struct pollfd fds[1024];
 
+/**
+ * @file main.cpp
+ * @brief Simple server implementation using sockets and the `poll` system call.
+ *
+ * creates a server that listens for incoming client connections on port 6662.
+ * It uses the `poll` system call to handle multiple client connections concurrently.
+ * The server sends a welcome message to new clients and responds to specific messages.
+ *
+ * @details
+ * - The server uses the `socket`, `bind`, and `listen` system calls to set up the server socket.
+ * - The `poll` system call is used to monitor multiple file descriptors for events.
+ * - When a new client connects, the server accepts the connection, sets the client socket to non-blocking mode,
+ *   and adds it to the list of monitored file descriptors.
+ * - The server responds to incoming messages from clients. For example, if a client sends "hello\n",
+ *   the server responds with "dont say hello, say salam alaikum\r\n".
+ *
+ * @note
+ * - server runs indefinitely in a loop until manually terminated.
+ * - server does not handle advanced error recovery or cleanup for simplicity.
+ * - Assumes max of 1024 file descriptors for the `poll` array.
+ */
 int main()
 {
     int client_fd;
@@ -94,7 +115,7 @@ int main()
                     std::cout << buffer << std::endl;
                     if (strcmp(buffer,"hello\n") == 0 )
                     {
-                        std::string welcome_msg = "dont say hello, say salam alaikum\r\n";
+                        std::string welcome_msg = "dont say hello, say wassup!\r\n";
                         send(client_fd, welcome_msg.c_str(), strlen(welcome_msg.c_str()), 0);
                         
                     }
