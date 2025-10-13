@@ -22,6 +22,7 @@ class Client {
         int getFd() const;
         const std::string& getNickname() const;
         const std::string& getUsername() const;
+        const std::string& getBuffer() const;
         bool isAuthenticated() const;
         bool isRegistered() const;
 

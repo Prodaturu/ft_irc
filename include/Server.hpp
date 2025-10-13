@@ -7,6 +7,7 @@
 #include <cstring>
 #include <poll.h>
 #include <sys/socket.h>
+#include <sys/types.h>
 #include <fcntl.h>
 #include <iostream>
 #include <unistd.h>

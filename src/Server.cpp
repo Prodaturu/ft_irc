@@ -106,12 +106,22 @@ void Server::handleClientData(int client_fd) {
     
     buffer[bytes_received] = '\0';
     std::string message(buffer);
-    
-    std::cout << "Received from " << client_fd << ": " << message << std::endl;
-    
-    // basic response
-    if (message == "hello\r\n") {
-        std::string response = "dont say hello, say wassup!\r\n";
+    Client* client = NULL;
+    for (size_t i = 0; i < _clients.size(); i++){
+        if (_clients[i]->getFd() == client_fd) {
+            client = _clients[i];
+            break;
+        }
+    }
+    if (!client)
+        return;
+    // std::cout << "[DEBUG] Received " << bytes_received << " bytes from client " << client_fd << std::endl;
+    client->appendToBuffer(message);
+    // std::cout << "[DEBUG] Buffer after append: \"" << client->getBuffer() << "\"" << std::endl;
+    while (client->hasCompleteLine()) {
+        std::string line = client->extractLine();
+        std::cout << "[COMPLETE LINE] From cleint " <<client_fd << ": \"" << line << "\"" << std::endl;
+        std::string response = "Server received: " + line + "\r\n";
         send(client_fd, response.c_str(), response.length(), 0);
     }
 }
