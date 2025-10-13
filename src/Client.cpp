@@ -1,4 +1,4 @@
-#include "Client.hpp"
+#include "../include/Client.hpp"
 
 Client::Client(int fd) : _fd(fd), _authenticated(false), _registered(false) {}
 
@@ -33,5 +33,19 @@ void Client::setAuthenticated(bool auth) {
     _authenticated = auth;
 }
 void Client::setRegistered(bool reg) {
-    _registered = reg; 
+    _registered = reg;
+}
+void Client::appendToBuffer(const std::string& data) {
+    _buffer += data;
+}
+bool Client::hasCompleteLine() const{
+    return _buffer.find("\r\n") != std::string::npos;
+}
+std::string Client::extractLine() {
+    size_t pos = _buffer.find("\r\n");
+    if (pos == std::string::npos)
+        return "";
+    std::string line = _buffer.substr(0, pos);
+    _buffer.erase(0, pos + 2);
+    return line;
 }
