@@ -26,6 +26,7 @@ class Server {
 
         void setupSocket();
         void setupServer();
+        Client* getClientByFd(int client_fd);
 
     public:
         Server(int port, const std::string& password);

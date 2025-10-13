@@ -53,20 +53,24 @@ void Server::start() {
 
     while (true) {
         int poll_count = poll(&_poll_fds[0], _poll_fds.size(), -1);
-        if (poll_count < 0)
+        if (poll_count < 0) {
+            if(errno == EINTR)
+                continue;
             throw std::runtime_error("Poll error");
+        }
         // Check server socket for new connections
         if (_poll_fds[0].revents & POLLIN)
             acceptNewClient();
 
         // Check client sockets for data  
         for (size_t i = 1; i < _poll_fds.size(); i++) {
-            if (_poll_fds[i].revents & POLLIN)
-                handleClientData(_poll_fds[i].fd);
-            if (_poll_fds[i].revents & POLLHUP){
+            if (_poll_fds[i].revents & (POLLERR | POLLHUP | POLLNVAL)){
                 removeClient(_poll_fds[i].fd);
                 i--;
+                continue;
             }
+            if(_poll_fds[i].revents & POLLIN)
+                    handleClientData(_poll_fds[i].fd);
         }
     }
 }
@@ -77,10 +81,17 @@ void Server::acceptNewClient() {
         std::cerr << "Error accepting connection" << std::endl;
         return;
     }
+
     // Set non-blocking
-    fcntl(client_fd, F_SETFL, O_NONBLOCK);
+    if (fcntl(client_fd, F_SETFL, O_NONBLOCK) < 0) {
+        std::cerr << "Error setting non-blocking mode" << std::endl;
+        close(client_fd);
+        return ;
+    }
+
     Client* new_client = new Client(client_fd);
     _clients.push_back(new_client);
+
     // Add to poll
     struct pollfd client_poll;
     client_poll.fd = client_fd;
@@ -88,7 +99,7 @@ void Server::acceptNewClient() {
     client_poll.revents = 0;
     _poll_fds.push_back(client_poll);
     
-    std::cout << "New client connected: " << client_fd << std::endl;
+    std::cout << "[CONNECT] New client connected: FD=" << client_fd << std::endl;
     
     // send welcome message
     std::string welcome_msg = "Welcome to IRC Server!\r\n";
@@ -96,38 +107,36 @@ void Server::acceptNewClient() {
 }
 
 void Server::handleClientData(int client_fd) {
-    char buffer[1024];
+    char buffer[512];
     ssize_t bytes_received = recv(client_fd, buffer, sizeof(buffer) - 1, 0);
     
     if (bytes_received <= 0) {
+        if(bytes_received == 0)
+            std::cout << "[DISCONNECT] Client " << client_fd << "closed connection" << std::endl;
+        else
+            std::cerr << "[ERROR] recv() failed for client " << client_fd << std::endl;
         removeClient(client_fd);
         return ;
     }
     
     buffer[bytes_received] = '\0';
-    std::string message(buffer);
-    Client* client = NULL;
-    for (size_t i = 0; i < _clients.size(); i++){
-        if (_clients[i]->getFd() == client_fd) {
-            client = _clients[i];
-            break;
-        }
-    }
+    Client* client = getClientByFd(client_fd);
     if (!client)
         return;
+    client->appendToBuffer(std::string(buffer, bytes_received));
     // std::cout << "[DEBUG] Received " << bytes_received << " bytes from client " << client_fd << std::endl;
-    client->appendToBuffer(message);
     // std::cout << "[DEBUG] Buffer after append: \"" << client->getBuffer() << "\"" << std::endl;
     while (client->hasCompleteLine()) {
         std::string line = client->extractLine();
-        std::cout << "[COMPLETE LINE] From cleint " <<client_fd << ": \"" << line << "\"" << std::endl;
-        std::string response = "Server received: " + line + "\r\n";
+        std::cout << "[RECV] FD=" << client_fd << ": \"" << line << "\"" << std::endl;
+        //echo back (will be replaced later with command handling)
+        std::string response = "localhost NOTICE " + client->getNickname() + " :You sent: " + line + "\r\n";
         send(client_fd, response.c_str(), response.length(), 0);
     }
 }
 
 void Server::removeClient(int client_fd) {
-    std::cout << "Removing client: " << client_fd << std::endl;
+    std::cout << "[DISCONNECT] Removing client: FD=" << client_fd << std::endl;
     
     // Remove from clients vector
     for (size_t i = 0; i < _clients.size(); i++) {
@@ -147,6 +156,14 @@ void Server::removeClient(int client_fd) {
     }
     
     close(client_fd);
+}
+
+Client* Server::getClientByFd(int client_fd) {
+    for (size_t i = 0; i < _clients.size(); i++) {
+        if (_clients[i]->getFd() == client_fd)
+            return _clients[i];
+    }
+    return NULL;
 }
 
 const std::string& Server::getPassword() const {
