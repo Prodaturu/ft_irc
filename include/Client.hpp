@@ -18,11 +18,11 @@ class Client {
         Client(int fd);
         ~Client();
 
-        
         //getters
         int getFd() const;
         const std::string& getNickname() const;
         const std::string& getUsername() const;
+        const std::string& getBuffer() const;
         bool isAuthenticated() const;
         bool isRegistered() const;
 
@@ -33,5 +33,10 @@ class Client {
         void setAuthenticated(bool auth);
         void setRegistered(bool reg);
 
+        //buffer methods
+        void appendToBuffer(const std::string& data);
+        bool hasCompleteLine() const;
+        std::string extractLine();
 };
+
 #endif

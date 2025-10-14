@@ -1,6 +1,9 @@
 #include <iostream>
+#include <string>
+#include <cstdlib>
 #include "Server.hpp"
-#include <stdlib.h>
+
+
 int main (int ac, char **av)
 {
     if (ac != 3) {

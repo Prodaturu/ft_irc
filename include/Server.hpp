@@ -7,11 +7,11 @@
 #include <cstring>
 #include <poll.h>
 #include <sys/socket.h>
+#include <sys/types.h>
 #include <fcntl.h>
 #include <iostream>
 #include <unistd.h>
 #include <netinet/in.h>
-
 #include "Client.hpp"
 
 
@@ -26,6 +26,7 @@ class Server {
 
         void setupSocket();
         void setupServer();
+        Client* getClientByFd(int client_fd);
 
     public:
         Server(int port, const std::string& password);
