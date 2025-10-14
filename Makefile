@@ -7,7 +7,8 @@ OBJDIR = obj
 
 SOURCES =	main.cpp \
 			Server.cpp \
-			Client.cpp
+			Client.cpp \
+			Channel.cpp
 
 OBJECTS = $(SOURCES:%.cpp=$(OBJDIR)/%.o)
 SRCFILES = $(addprefix $(SRCDIR)/, $(SOURCES))
