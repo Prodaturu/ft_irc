@@ -64,13 +64,24 @@ void Server::start() {
 
         // Check client sockets for data  
         for (size_t i = 1; i < _poll_fds.size(); i++) {
-            if (_poll_fds[i].revents & (POLLERR | POLLHUP | POLLNVAL)){
+            int revents = _poll_fds[i].revents;
+            //checking for errors or hangup
+            if (revents & (POLLERR | POLLNVAL)){
+                std::cout << "[ERROR] Poll error on FD=" << _poll_fds[i].fd << std::endl;
                 removeClient(_poll_fds[i].fd);
                 i--;
                 continue;
             }
-            if(_poll_fds[i].revents & POLLIN)
+            if (revents & POLLHUP) {
+                if (revents & POLLIN)
                     handleClientData(_poll_fds[i].fd);
+            std::cout << "[HANGUP] Client hung up: FD=" << _poll_fds[i].fd << std::endl;
+                removeClient(_poll_fds[i].fd);
+                i--;
+                continue;
+        }
+            if (revents & POLLIN)
+                handleClientData(_poll_fds[i].fd);
         }
     }
 }
@@ -110,14 +121,18 @@ void Server::handleClientData(int client_fd) {
     char buffer[512];
     ssize_t bytes_received = recv(client_fd, buffer, sizeof(buffer) - 1, 0);
     
-    if (bytes_received <= 0) {
-        if(bytes_received == 0)
-            std::cout << "[DISCONNECT] Client " << client_fd << "closed connection" << std::endl;
-        else
-            std::cerr << "[ERROR] recv() failed for client " << client_fd << std::endl;
+    if (bytes_received < 0) {
+        if (errno == EAGAIN || errno == EWOULDBLOCK)
+            return;
+        std::cerr << "[ERROR] recv() failed for client " << client_fd << std::endl;
         removeClient(client_fd);
         return ;
     }
+        if (bytes_received == 0) {
+            std::cout << "[DISCONNECT] Client " << client_fd << "closed connection" << std::endl;
+            removeClient(client_fd);
+            return ;
+        }
     
     buffer[bytes_received] = '\0';
     Client* client = getClientByFd(client_fd);
@@ -128,10 +143,21 @@ void Server::handleClientData(int client_fd) {
     // std::cout << "[DEBUG] Buffer after append: \"" << client->getBuffer() << "\"" << std::endl;
     while (client->hasCompleteLine()) {
         std::string line = client->extractLine();
+
+        if (line.empty())
+            continue;
+
         std::cout << "[RECV] FD=" << client_fd << ": \"" << line << "\"" << std::endl;
+
         //echo back (will be replaced later with command handling)
         std::string response = "localhost NOTICE " + client->getNickname() + " :You sent: " + line + "\r\n";
-        send(client_fd, response.c_str(), response.length(), 0);
+        ssize_t sent = send(client_fd, response.c_str(), response.length(), 0);
+
+        if (sent < 0) {
+            std::cerr << "[ERROR] send() failed for client " << client_fd << std::endl;
+            removeClient(client_fd);
+            return ;
+        }
     }
 }
 
