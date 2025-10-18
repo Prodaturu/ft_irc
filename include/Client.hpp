@@ -2,6 +2,8 @@
 #define CLIENT_HPP
 
 #include <string>
+#include <cctype>
+#include <algorithm>
 
 typedef std::string string;
 

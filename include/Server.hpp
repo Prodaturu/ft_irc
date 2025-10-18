@@ -13,6 +13,8 @@
 #include <unistd.h>
 #include <netinet/in.h>
 
+#include <sstream>
+
 #include "Client.hpp"
 
 
@@ -41,6 +43,18 @@ class Server {
         //getters
 
         const std::string& getPassword() const;
+
+        //helper function temp
+        static std::vector<std::string> split(const std::string &input) {
+            std::vector<std::string> tokens;
+            std::istringstream iss(input);
+            std::string token;
+
+            while (iss >> token) // automatically splits by whitespace
+                tokens.push_back(token);
+
+            return tokens;
+        }
 };
 
 #endif

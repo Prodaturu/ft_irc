@@ -149,19 +149,62 @@ void Server::handleClientData(int client_fd) {
 
         std::cout << "[RECV] FD=" << client_fd << ": \"" << line << "\"" << std::endl;
 
-        if (string.to_upper(line) == "QUIT") {
-            // Handle QUIT command
-        } else if (string.to_upper(line) == "NICKNAME") {
-            //     set nickname
-        } else if (string.to_upper(line) == "USERNAME") {
-            //     set username
-        } else if (string.to_upper(line) == "PASSWORD") {
-            //     check password and set authenticated
+        std::vector<std::string> tokens = Server::split(line);
+        std::transform(tokens[0].begin(), tokens[0].end(), tokens[0].begin(), ::toupper);
+
+        if (tokens[0] == "QUIT") {
+            std::cout << "|----------------------quit test----------------------|" << std::endl;
+        } else if (tokens[0] == "NICKNAME") {
+
+            std::string error_msg = "temp";
+            if (tokens.size() == 2) {
+                client->setNickname(tokens[1]);
+                std::cout << "[INFO] Set nickname to " << tokens[1] << " for FD=" << client_fd << std::endl;
+            } else if (tokens.size() == 1)
+                error_msg = "ERROR :NICKNAME command requires a nickname parameter\r\n";
+            else
+                error_msg = "ERROR :NICKNAME command has too many parameters\r\n";
+            send(client_fd, error_msg.c_str(), error_msg.length(), 0);
+            continue;
+
+        } else if (tokens[0] == "USERNAME") {
+        
+            std::string error_msg = "temp";
+            if (tokens.size() == 2) {
+                client->setUsername(tokens[1]);
+                std::cout << "[INFO] Set username to " << tokens[1] << " for FD=" << client_fd << std::endl;
+            } else if (tokens.size() == 1)
+                error_msg = "ERROR :USERNAME command requires a username parameter\r\n";
+            else
+                error_msg = "ERROR :USERNAME command has too many parameters\r\n";
+            send(client_fd, error_msg.c_str(), error_msg.length(), 0);
+            continue;
+        
+        } else if (tokens[0] == "PASSWORD") {
+            
+            std::string error_msg = "temp";
+            if (tokens.size() == 2) {
+                if (tokens[1] != getPassword()) {
+                    std::string error_msg = "ERROR :Invalid password\r\n";
+                    send(client_fd, error_msg.c_str(), error_msg.length(), 0);
+                    continue;
+                }
+                client->setAuthenticated(true);
+                std::cout << "[INFO] Client FD=" << client_fd << " authenticated successfully" << std::endl;
+            } else if (tokens.size() == 1)
+                error_msg = "ERROR :PASSWORD command requires a password parameter\r\n";
+            else
+                error_msg = "ERROR :PASSWORD command has too many parameters\r\n";
+            send(client_fd, error_msg.c_str(), error_msg.length(), 0);
+            continue;
+
         }
 
-        // if (if nickname, username, password not set continue)
-        //     send error message
-        //      continue
+        if (client->getNickname().empty() || client->getUsername().empty() || !client->isAuthenticated()) {
+            std::string error_msg = "ERROR :You must set NICKNAME, USERNAME and authenticate with PASSWORD before sending commands\r\n";
+            send(client_fd, error_msg.c_str(), error_msg.length(), 0);
+            continue;
+        }
 
         //echo back (will be replaced later with command handling)
         std::string response = "localhost NOTICE " + client->getNickname() + " :You sent: " + line + "\r\n";
