@@ -149,6 +149,20 @@ void Server::handleClientData(int client_fd) {
 
         std::cout << "[RECV] FD=" << client_fd << ": \"" << line << "\"" << std::endl;
 
+        if (string.to_upper(line) == "QUIT") {
+            // Handle QUIT command
+        } else if (string.to_upper(line) == "NICKNAME") {
+            //     set nickname
+        } else if (string.to_upper(line) == "USERNAME") {
+            //     set username
+        } else if (string.to_upper(line) == "PASSWORD") {
+            //     check password and set authenticated
+        }
+
+        // if (if nickname, username, password not set continue)
+        //     send error message
+        //      continue
+
         //echo back (will be replaced later with command handling)
         std::string response = "localhost NOTICE " + client->getNickname() + " :You sent: " + line + "\r\n";
         ssize_t sent = send(client_fd, response.c_str(), response.length(), 0);

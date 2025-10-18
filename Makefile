@@ -1,25 +1,25 @@
 NAME = IRC
 CXX = c++
 CXXFLAGS = -Wall -Wextra -Werror -std=c++98
-SRCDIR = src
 INCDIR = include
 OBJDIR = obj
 
-SOURCES =	main.cpp \
-			Server.cpp \
-			Client.cpp \
-			Channel.cpp
+SOURCES = main.cpp \
+          src/Server.cpp \
+          src/Client.cpp \
+          src/Channel.cpp \
+          src/ChannelModes.cpp \
+          src/OperatorCommands.cpp
 
 OBJECTS = $(SOURCES:%.cpp=$(OBJDIR)/%.o)
-SRCFILES = $(addprefix $(SRCDIR)/, $(SOURCES))
 
 all: $(NAME)
 
 $(NAME): $(OBJECTS)
-		$(CXX) $(CXXFLAGS) $(OBJECTS) -o $(NAME)
+	$(CXX) $(CXXFLAGS) $(OBJECTS) -o $(NAME)
 
-$(OBJDIR)/%.o: $(SRCDIR)/%.cpp
-	@mkdir -p $(OBJDIR)
+$(OBJDIR)/%.o: %.cpp
+	@mkdir -p $(dir $@)
 	$(CXX) $(CXXFLAGS) -I$(INCDIR) -c $< -o $@
 
 clean:
@@ -30,4 +30,4 @@ fclean: clean
 
 re: fclean all
 
-.PHONY: re fclean clean all
+.PHONY: all clean fclean re

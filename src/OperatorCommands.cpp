@@ -10,7 +10,7 @@
 /*                                                                            */
 /* ************************************************************************** */
 
-#include "OperatorCommands.hpp"
+#include "../include/OperatorCommands.hpp"
 
 OperatorCommands::OperatorCommands() {
 }

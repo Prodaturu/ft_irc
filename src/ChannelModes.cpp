@@ -10,7 +10,7 @@
 /*                                                                            */
 /* ************************************************************************** */
 
-#include "ChannelModes.hpp"
+#include "../include/ChannelModes.hpp"
 
 ChannelModes::ChannelModes() {
 }

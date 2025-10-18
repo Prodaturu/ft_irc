@@ -3,16 +3,18 @@
 
 #include <string>
 
+typedef std::string string;
+
 class Client {
 
     private:
-        int _fd;
-        std::string _buffer;
-        std::string _nickname;
-        std::string _username;
-        std::string _realname;
-        bool _authenticated;
-        bool _registered;
+        int fd;
+        string buffer;
+        string nickname;
+        string username;
+        string realname;
+        bool authenticated;
+        bool registered;
 
     public:
         Client(int fd);
