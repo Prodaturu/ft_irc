@@ -1,46 +1,68 @@
 #include "Channel.hpp"
 
-Channel::Channel(const std::string& name) : _name (name) {}
+Channel::Channel(const std::string& name) : name (name) {}
 
 Channel::~Channel(){}
 
+Channel::Channel(const Channel &toCopy) {
+    *this = toCopy;
+}
+
+Channel &Channel::operator=(const Channel &toCopy) {
+    if (this != &toCopy) {
+        name = toCopy.name;
+        topic = toCopy.topic;
+        operators = toCopy.operators;
+        members = toCopy.members;
+    }
+    return *this;
+}
+
 const std::string& Channel::getName() const {
-    return _name;
+    return name;
 }
 
 const std::string& Channel::getTopic() const {
-    return _topic;
+    return topic;
 }
 
 const std::vector<Client*>& Channel::getMembers() const {
-    return _members;
+    return members;
 }
 
 size_t Channel::getMemberCount() const {
-    return _members.size();
+    return members.size();
+}
+
+bool Channel::hasMember(Client* client) const {
+    for (size_t i = 0; i < members.size(); i++) {
+        if(members[i] == client)
+            return true;
+    }
+    return false;
 }
 
 void Channel::addMember(Client* client) {
     if (!hasMember(client)) {
-        _members.push_back(client);
-        if (_members.size() == 1)
+        members.push_back(client);
+        if (members.size() == 1)
             addOperator(client);
     }
 }
 
 void Channel::removeMember(Client* client) {
-    for (size_t i = 0; i < _members.size(); i++) {
-        if (_members[i] == client) {
-                _members.erase(_members.begin() + i);
-                break ; 
+    for (size_t i = 0; i < members.size(); i++) {
+        if (members[i] == client) {
+            members.erase(members.begin() + i);
+            break;
         }
     }
     removeOperator(client);
 }
 
-bool Channel::hasMember(Client* client) const {
-    for (size_t i = 0; i < _members.size(); i++) {
-        if(_members[i] == client)
+bool Channel::isOperator(Client* client) const {
+    for (size_t i = 0; i < operators.size(); i++) {
+        if (operators[i] == client)
             return true;
     }
     return false;
@@ -48,33 +70,25 @@ bool Channel::hasMember(Client* client) const {
 
 void Channel::addOperator(Client* client) {
     if (!isOperator(client))
-        _operators.push_back(client);
+        operators.push_back(client);
 }
 
 void Channel::removeOperator(Client* client) {
-    for (size_t i = 0; i < _operators.size(); i++) {
-        if (_operators[i] == client) {
-            _operators.erase(_operators.begin() + i);
+    for (size_t i = 0; i < operators.size(); i++) {
+        if (operators[i] == client) {
+            operators.erase(operators.begin() + i);
             break;
         }
     }
 }
 
-bool Channel::isOperator(Client* client) const {
-    for (size_t i = 0; i < _operators.size(); i++) {
-        if (_operators[i] == client)
-            return true;
-    }
-    return false;
-}
-
 void Channel::setTopic(const std::string& topic) {
-    _topic = topic;
+    this->topic = topic;
 }
 
 void Channel::broadcast(const std::string& message, Client* exclude) {
     std::string full_msg = message + "\r\n";
-    for (size_t i = 0; i < _members.size(); i++)
-        if (_members[i] != exclude)
-            send(_members[i]->getFd(), full_msg.c_str(), full_msg.length(), 0);
+    for (size_t i = 0; i < members.size(); i++)
+        if (members[i] != exclude)
+            send(members[i]->getFd(), full_msg.c_str(), full_msg.length(), 0);
 }

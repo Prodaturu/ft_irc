@@ -4,37 +4,45 @@
 #include <string>
 #include <vector>
 #include <sys/socket.h>
+
 #include "Client.hpp"
+#include "Server.hpp"
+
+typedef std::string string;
+typedef std::vector<Client*> ClientList;
 
 class Channel {
 
     private:
-        std::string _name;
-        std::string _topic;
-        std::vector<Client*> _members;
-        std::vector<Client*> _operators;
+        string name;
+        string topic;
+        ClientList operators;
+        ClientList members;
+        ClientList invitedClients;
 
     public:
-        Channel(const std::string& name);
+        Channel(const string& name);
         ~Channel();
+        Channel(const Channel &toCopy);
+        Channel &operator=(const Channel &toCopy);
 
         //getters
-        const std::string& getName() const;
-        const std::string& getTopic() const;
-        const std::vector<Client*>& getMembers() const;
+        const string& getName() const;
+        const string& getTopic() const;
+        const ClientList& getMembers() const;
         size_t getMemberCount() const;
 
+        bool hasMember(Client* client) const;
         void addMember(Client* client);
         void removeMember(Client* client);
-        bool hasMember(Client* client) const;
         
+        bool isOperator(Client* client) const;
         void addOperator(Client* client);
         void removeOperator(Client* client);
-        bool isOperator(Client* client) const;
 
-        void setTopic(const std::string& topic);
+        void setTopic(const string& topic);
 
-        void broadcast(const std::string& message, Client* exclude = NULL);
+        void broadcast(const string& message, Client* exclude = NULL);
 };
 
 #endif
