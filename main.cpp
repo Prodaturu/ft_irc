@@ -3,7 +3,6 @@
 #include <cstdlib>
 #include "include/Server.hpp"
 
-
 int main (int ac, char **av)
 {
     // Argument check
@@ -36,7 +35,13 @@ int main (int ac, char **av)
     try 
     {
         // Signal handling (pending implementation)
-
+        signal(SIGINT, Server::SignalHandler);
+        signal(SIGQUIT, Server::SignalHandler);
+        // [] (int signum)
+        // {
+        //     std::cout << "\nSignal " << signum << " received, shutting down server." << std::endl;
+        //     std::exit(0);
+        // }
         // Start the server
         server.start();
     }
