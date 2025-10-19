@@ -2,6 +2,7 @@
 #define CLIENT_HPP
 
 #include <string>
+#include <vector>
 #include <cctype>
 #include <algorithm>
 
@@ -36,6 +37,12 @@ class Client {
         void setRealname(const std::string& realname);
         void setAuthenticated(bool auth);
         void setRegistered(bool reg);
+
+        //authentication
+        bool authenticator(std::string line, Client* client, std::string password, int client_fd) const;
+        bool checkNickname(std::vector<std::string> tokens, int client_fd) const;
+        bool checkUsername(std::vector<std::string> tokens, int client_fd) const;
+        bool checkPassword(std::vector<std::string> tokens, Client* client, std::string password) const;
 
         //buffer methods
         void appendToBuffer(const std::string& data);

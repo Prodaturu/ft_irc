@@ -5,6 +5,7 @@ INCDIR = include
 OBJDIR = obj
 
 SOURCES = main.cpp \
+		  src/Authentication.cpp \
           src/Server.cpp \
           src/Client.cpp \
           src/Channel.cpp \

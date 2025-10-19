@@ -17,7 +17,6 @@
 
 #include "Client.hpp"
 
-
 class Server {
 
     private:
@@ -41,8 +40,9 @@ class Server {
         void removeClient(int client_fd);
 
         //getters
-
         const std::string& getPassword() const;
+
+        //parse commands
 
         //helper function temp
         static std::vector<std::string> split(const std::string &input) {
