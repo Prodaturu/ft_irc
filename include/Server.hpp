@@ -16,6 +16,7 @@
 #include <sstream>
 
 #include "Client.hpp"
+#include "Channel.hpp"
 
 class Server {
 
@@ -25,6 +26,7 @@ class Server {
         std::string _password;
         std::vector<struct pollfd> _poll_fds;
         std::vector<Client*> _clients;
+        std::vector<Channel*> _channels;
 
         void setupSocket();
         void setupServer();

@@ -14,17 +14,17 @@
 #define OPERATORCOMMANDS_HPP
 
 #include <string>
+#include <vector>
 
 typedef std::string string;
 
 class OperatorCommands {
-    // OperatorCommands class definition will go here
-
     public:
-        OperatorCommands();
-        ~OperatorCommands();
-        OperatorCommands(const OperatorCommands &toCopy);
-        OperatorCommands &operator=(const OperatorCommands &toCopy);
+        void Kick(std::vector<string> tokens, int client_fd);
+        void Invite(std::vector<string> tokens, int client_fd);
+        void Topic(std::vector<string> tokens, int client_fd);
+        void Mode(std::vector<string> tokens, int client_fd);
+        void Quit(std::vector<string> tokens, int client_fd);
 };
 
 #endif

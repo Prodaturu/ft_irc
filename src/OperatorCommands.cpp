@@ -12,18 +12,12 @@
 
 #include "../include/OperatorCommands.hpp"
 
-OperatorCommands::OperatorCommands() {
-}
+void OperatorCommands::Kick(std::vector<string> tokens, int client_fd) {}
 
-OperatorCommands::~OperatorCommands() {
-}
+void OperatorCommands::Invite(std::vector<string> tokens, int client_fd) {}
 
-OperatorCommands::OperatorCommands(const OperatorCommands &toCopy) {
-    *this = toCopy;
-}
+void OperatorCommands::Topic(std::vector<string> tokens, int client_fd) {}
 
-OperatorCommands &OperatorCommands::operator=(const OperatorCommands &toCopy) {
-    if (this != &toCopy) {
-    }
-    return *this;
-}
+void OperatorCommands::Mode(std::vector<string> tokens, int client_fd) {}
+
+void OperatorCommands::Quit(std::vector<string> tokens, int client_fd) {}

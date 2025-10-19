@@ -11,6 +11,7 @@
 /* ************************************************************************** */
 
 #include "../include/Server.hpp"
+#include "../include/OperatorCommands.hpp"
 
 bool Client::authenticator(std::string line, Client* client, std::string password, int client_fd) const {
     std::string errorMessage;
@@ -18,7 +19,7 @@ bool Client::authenticator(std::string line, Client* client, std::string passwor
     std::transform(tokens[0].begin(), tokens[0].end(), tokens[0].begin(), ::toupper);
 
     if (tokens[0] == "QUIT" && tokens.size() == 1)
-        //
+        return (OperatorCommands().Quit(tokens, client_fd), false);
     else if (tokens[0] == "NICKNAME" && client->checkNickname(tokens, client_fd))
         return (client->setNickname(tokens[1]), true);
     else if (tokens[0] == "USERNAME" && client->checkUsername(tokens, client_fd))
@@ -28,14 +29,13 @@ bool Client::authenticator(std::string line, Client* client, std::string passwor
     else if (client->getNickname().empty() && client->getUsername().empty() && !client->isAuthenticated())
         errorMessage = "ERROR :You must set NICKNAME, USERNAME and authenticate with PASSWORD before sending commands\r\n";
     else if (tokens[0] == "KICK")
-        //
+        return (OperatorCommands().Kick(tokens, client_fd), true);
     else if (tokens[0] == "INVITE")
-        //
+        return (OperatorCommands().Invite(tokens, client_fd), true);
     else if (tokens[0] == "TOPIC")
-        //
+        return (OperatorCommands().Topic(tokens, client_fd), true);
     else if (tokens[0] == "MODE")
-        //
-
+        return (OperatorCommands().Mode(tokens, client_fd), true);
     send(client_fd, errorMessage.c_str(), errorMessage.length(), 0);
     return false;
 }
