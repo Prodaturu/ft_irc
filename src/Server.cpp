@@ -2,24 +2,28 @@
 #include <errno.h>
 #include <stdexcept>
 
-Server::Server(int port, const std::string& password): _server_fd(-1), _port(port), _password(password) {
+Server::Server(int port, const std::string& password): _server_fd(-1), _port(port), _password(password)
+{
     setupSocket();
 }
 
-Server::~Server() {
+Server::~Server()
+{
     for (size_t i = 0; i < _clients.size(); i++)
         delete _clients[i];
     if (_server_fd != -1)
         close(_server_fd);
 }
 
-void Server::setupSocket() {
+void Server::setupSocket()
+{
     _server_fd = socket(AF_INET, SOCK_STREAM, 0);
     if (_server_fd < 0)
         throw std::runtime_error("Error creating socket");
 
     int opt = 1;
-    if (setsockopt(_server_fd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt)) < 0) {
+    if (setsockopt(_server_fd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt)) < 0)
+    {
         close(_server_fd);
         throw std::runtime_error("Failed to set socket options");
     }
@@ -29,12 +33,14 @@ void Server::setupSocket() {
     server_addr.sin_addr.s_addr = INADDR_ANY;
     server_addr.sin_port = htons(_port); 
 
-    if (bind(_server_fd, (sockaddr *)&server_addr, sizeof(server_addr)) < 0) {
+    if (bind(_server_fd, (sockaddr *)&server_addr, sizeof(server_addr)) < 0)
+    {
         close(_server_fd);
         throw std::runtime_error("Error binding socket");
     }
 
-    if (listen(_server_fd, 5) < 0) {
+    if (listen(_server_fd, 5) < 0)
+    {
         close(_server_fd);
         throw std::runtime_error("Error listening on socket");
     }
@@ -51,9 +57,11 @@ void Server::start() {
     
     std::cout << "Server started successfully!" << std::endl;
 
-    while (true) {
+    while ("martin is bulgarian")
+    {
         int poll_count = poll(&_poll_fds[0], _poll_fds.size(), -1);
-        if (poll_count < 0) {
+        if (poll_count < 0)
+        {
             if(errno == EINTR)
                 continue;
             throw std::runtime_error("Poll error");
@@ -63,38 +71,44 @@ void Server::start() {
             acceptNewClient();
 
         // Check client sockets for data  
-        for (size_t i = 1; i < _poll_fds.size(); i++) {
+        for (size_t i = 1; i < _poll_fds.size(); i++)
+        {
             int revents = _poll_fds[i].revents;
             //checking for errors or hangup
-            if (revents & (POLLERR | POLLNVAL)){
+            if (revents & (POLLERR | POLLNVAL))
+            {
                 std::cout << "[ERROR] Poll error on FD=" << _poll_fds[i].fd << std::endl;
                 removeClient(_poll_fds[i].fd);
                 i--;
                 continue;
             }
-            if (revents & POLLHUP) {
+            if (revents & POLLHUP)
+            {
                 if (revents & POLLIN)
                     handleClientData(_poll_fds[i].fd);
-            std::cout << "[HANGUP] Client hung up: FD=" << _poll_fds[i].fd << std::endl;
+                std::cout << "[HANGUP] Client hung up: FD=" << _poll_fds[i].fd << std::endl;
                 removeClient(_poll_fds[i].fd);
                 i--;
                 continue;
-        }
+            }
             if (revents & POLLIN)
                 handleClientData(_poll_fds[i].fd);
         }
     }
 }
 
-void Server::acceptNewClient() {
+void Server::acceptNewClient()
+{
     int client_fd = accept(_server_fd, NULL, NULL);
-    if (client_fd < 0) {
+    if (client_fd < 0)
+    {
         std::cerr << "Error accepting connection" << std::endl;
         return;
     }
 
     // Set non-blocking
-    if (fcntl(client_fd, F_SETFL, O_NONBLOCK) < 0) {
+    if (fcntl(client_fd, F_SETFL, O_NONBLOCK) < 0)
+    {
         std::cerr << "Error setting non-blocking mode" << std::endl;
         close(client_fd);
         return ;

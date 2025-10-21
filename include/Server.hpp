@@ -18,7 +18,8 @@
 #include "Client.hpp"
 #include "Channel.hpp"
 
-class Server {
+class Server
+{
 
     private:
         int _server_fd;
