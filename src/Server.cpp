@@ -210,10 +210,8 @@ void Server::handleClientData(int client_fd)
 		
 		std::cout << "[RECV] FD=" << client_fd << ": \"" << line << "\"" << std::endl;
 		
-		// Process command through authenticator
 		authenticator(line, client, client_fd);
 		
-		// Check if client just completed registration
 		if (client->isAuthenticated() && !client->getNickname().empty() && !client->getUsername().empty())
 		{
 			// Send welcome messages if not yet registered
@@ -241,7 +239,6 @@ void Server::handleClientData(int client_fd)
 				std::cout << "[REGISTERED] " << nick << " successfully registered" << std::endl;
 			}
 			
-			// Execute other commands after registration
 			execCommand(line, client);
 		}
 	}
@@ -250,6 +247,26 @@ void Server::handleClientData(int client_fd)
 void Server::removeClient(int client_fd)
 {
 	std::cout << "[DISCONNECT] Removing client: FD=" << client_fd << std::endl;
+
+	Client* client = getClientByFd(client_fd);
+	if (client)
+	{
+		for (size_t i = 0; i < _channels.size(); i++)
+		{
+			if (_channels[i]->hasMember(client))
+			{
+				_channels[i]->removeMember(client);
+				
+				if (_channels[i]->getMemberCount() == 0)
+				{
+					std::cout << "[CHANNEL] Deleted empty channel: " << _channels[i]->getName() << std::endl;
+					delete _channels[i];
+					_channels.erase(_channels.begin() + i);
+					i--;
+				}
+			}
+		}
+	}
 
 	// Remove from clients vector
 	for (size_t i = 0; i < _clients.size(); i++)

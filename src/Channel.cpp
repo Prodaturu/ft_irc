@@ -10,6 +10,10 @@ const std::string& Channel::getTopic() const {
     return topic;
 }
 
+const std::string& Channel::getKey() const {
+    return key;
+}
+
 const std::vector<Client*>& Channel::getMembers() const {
     return members;
 }
@@ -68,6 +72,10 @@ void Channel::removeOperator(Client* client) {
 
 void Channel::setTopic(const std::string& topic) {
     this->topic = topic;
+}
+
+void Channel::setKey(const std::string& key) {
+    this->key = key;
 }
 
 void Channel::broadcast(const std::string& message, Client* exclude) {

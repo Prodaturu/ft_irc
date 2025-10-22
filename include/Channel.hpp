@@ -25,6 +25,7 @@ class Channel {
     private:
         string name;
         string topic;
+        string key;  // Channel password/key
         ClientList operators;
         ClientList members;
         ClientList invitedClients;
@@ -36,6 +37,7 @@ class Channel {
         //getters
         const string& getName() const;
         const string& getTopic() const;
+        const string& getKey() const;
         const ClientList& getMembers() const;
         size_t getMemberCount() const;
 
@@ -48,6 +50,7 @@ class Channel {
         void removeOperator(Client* client);
 
         void setTopic(const string& topic);
+        void setKey(const string& key);
 
         void broadcast(const string& message, Client* exclude = NULL);
 };
