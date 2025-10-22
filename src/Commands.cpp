@@ -121,3 +121,94 @@ void Server::handleJoin(stringList tokens, Client* client)
                               + channel_name + " :End of /NAMES list\r\n";
     send(client->getFd(), end_of_names.c_str(), end_of_names.length(), 0);
 }
+
+
+void Server::handlePrivmsg(stringList tokens, Client* client)
+{
+    if (!client->isAuthenticated() || client->getNickname().empty() || client->getUsername().empty())
+    {
+        std::string error = "ERROR :You must complete registration first (PASS, NICK, USER)\r\n";
+        send(client->getFd(), error.c_str(), error.length(), 0);
+        return;
+    }
+
+    if (tokens.size() < 2)
+    {
+        std::string error = "ERROR :PRIVMSG command requires a target\r\n";
+        send(client->getFd(), error.c_str(), error.length(), 0);
+        return;
+    }
+
+    if (tokens.size() < 3)
+    {
+        std::string error = "ERROR :PRIVMSG command requires message text\r\n";
+        send(client->getFd(), error.c_str(), error.length(), 0);
+        return;
+    }
+
+    string target = tokens[1];
+    
+    string message = "";
+    for (size_t i = 2; i < tokens.size(); i++)
+    {
+        if (i > 2)
+            message += " ";
+        message += tokens[i];
+    }
+
+    if (!message.empty() && message[0] == ':')
+        message = message.substr(1);
+
+    // Check if target is a channel (starts with # or &)
+    if (!target.empty() && (target[0] == '#' || target[0] == '&'))
+    {
+        // Message to channel
+        Channel* channel = getChannelByName(target);
+        if (!channel)
+        {
+            std::string error = "ERROR :No such channel " + target + "\r\n";
+            send(client->getFd(), error.c_str(), error.length(), 0);
+            return;
+        }
+
+        if (!channel->hasMember(client))
+        {
+            std::string error = "ERROR :Cannot send to channel (you're not in it)\r\n";
+            send(client->getFd(), error.c_str(), error.length(), 0);
+            return;
+        }
+
+        // broadcasted message to everyone 
+        std::string channel_msg = ":" + client->getNickname() + "!~" + client->getUsername() 
+                                 + "@localhost PRIVMSG " + target + " :" + message;
+        channel->broadcast(channel_msg, client);
+        
+        std::cout << "[PRIVMSG] " << client->getNickname() << " -> " << target << ": " << message << std::endl;
+    }
+    else
+    {
+        // messages to user (sliding in the DMs)
+        Client* recipient = NULL;
+        for (size_t i = 0; i < _clients.size(); i++)
+        {
+            if (_clients[i]->getNickname() == target)
+            {
+                recipient = _clients[i];
+                break;
+            }
+        }
+
+        if (!recipient)
+        {
+            std::string error = "ERROR :No such nick " + target + "\r\n";
+            send(client->getFd(), error.c_str(), error.length(), 0);
+            return;
+        }
+
+        std::string dm_msg = ":" + client->getNickname() + "!~" + client->getUsername() 
+                           + "@localhost PRIVMSG " + target + " :" + message + "\r\n";
+        send(recipient->getFd(), dm_msg.c_str(), dm_msg.length(), 0);
+        
+        std::cout << "[PRIVMSG] " << client->getNickname() << " -> " << target << " (DM): " << message << std::endl;
+    }
+}

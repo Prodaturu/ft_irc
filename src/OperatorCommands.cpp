@@ -29,6 +29,12 @@ void Server::execCommand(string line, Client* client)
         return ;
     }
     
+    // handle PRIVMSG separately becuase it can target channels or users
+    if (tokens[0] == "PRIVMSG") {
+        handlePrivmsg(tokens, client);
+        return;
+    }
+    
     // we handle quit seperately from other OperatorCommands because it doesnt need a channel
     if (tokens[0] == "QUIT") {
         OperatorCommands().Quit(tokens, client);

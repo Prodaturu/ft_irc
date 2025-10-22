@@ -65,6 +65,7 @@ class Server
 
         //commands
         void handleJoin(stringList tokens, Client* client);
+        void handlePrivmsg(stringList tokens, Client* client);
 
         //parse commands
         stringList parser(const string &input) const;
