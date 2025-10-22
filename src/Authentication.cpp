@@ -13,14 +13,8 @@
 #include "../include/Server.hpp"
 #include "../include/OperatorCommands.hpp"
 
-void Server::authenticator(string line, Client *client, int client_fd) const
+void Server::authenticator(string line, Client *client, int client_fd)
 {
-    string errorMessage = 
-        "ERROR :You must authenticate first\r\n"
-        "AUTHENTICATE USING:\r\n"
-        "PASS <password>\r\n"
-        "NICK <nickname>\r\n"
-        "USER <username> <hostname> <servername> :<realname>\r\n";
     stringList tokens = parser(line);
     if (tokens.empty())
         return ;
@@ -34,6 +28,8 @@ void Server::authenticator(string line, Client *client, int client_fd) const
         client->setUsername(tokens[1]);
         client->setRealname(tokens[4]);
     }
+    else if (tokens[0] == "JOIN")
+        handleJoin(tokens, client);
     else if (tokens[0] == "QUIT")
         OperatorCommands().Quit(tokens, client);
     else if (tokens[0] == "KICK") 
@@ -44,9 +40,6 @@ void Server::authenticator(string line, Client *client, int client_fd) const
         OperatorCommands().Topic(tokens, client);
     else if (tokens[0] == "MODE")
         OperatorCommands().Mode(tokens, client);
-
-    if (!errorMessage.empty())
-        send(client_fd, errorMessage.c_str(), errorMessage.length(), 0);
 }
 
 bool Server::checkNickname(stringList tokens, int client_fd) const

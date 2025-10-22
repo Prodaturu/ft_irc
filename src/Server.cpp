@@ -1,4 +1,5 @@
 #include "../include/Server.hpp"
+#include "../include/Channel.hpp"
 #include <errno.h>
 #include <stdexcept>
 
@@ -11,6 +12,8 @@ Server::~Server()
 {
 	for (size_t i = 0; i < _clients.size(); i++)
 		delete _clients[i];
+	for (size_t i = 0; i < _channels.size(); i++)
+		delete _channels[i];
 	if (_server_fd != -1)
 		close(_server_fd);
 }
