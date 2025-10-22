@@ -16,7 +16,9 @@
 #include <sstream>
 
 #include "Client.hpp"
-#include "Channel.hpp"
+
+// Forward declaration to avoid circular include (Channel.hpp includes Server.hpp)
+class Channel;
 
 class Server
 {

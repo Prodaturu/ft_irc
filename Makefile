@@ -1,6 +1,6 @@
 NAME = IRC
 CXX = c++
-CXXFLAGS = -Wall -Wextra -Werror -std=c++98
+CXXFLAGS = -Wall -Wextra -Werror -std=c++11
 INCDIR = include
 OBJDIR = obj
 

@@ -16,18 +16,21 @@
 bool Client::authenticator(std::string line, Client* client, std::string password, int client_fd) const {
     std::string errorMessage;
     std::vector<std::string> tokens = Server::split(line);
+    if (tokens.empty())
+        return false;
     std::transform(tokens[0].begin(), tokens[0].end(), tokens[0].begin(), ::toupper);
 
-    if (tokens[0] == "QUIT" && tokens.size() == 1)
-        return (OperatorCommands().Quit(tokens, client_fd), false);
-    else if (tokens[0] == "NICKNAME" && client->checkNickname(tokens, client_fd))
-        return (client->setNickname(tokens[1]), true);
-    else if (tokens[0] == "USERNAME" && client->checkUsername(tokens, client_fd))
-        return (client->setUsername(tokens[1]), true);
-    else if (tokens[0] == "PASSWORD" && client->checkPassword(tokens, client, password))
+    // IRC Standard commands (not yet authenticated)
+    if (tokens[0] == "PASS" && client->checkPassword(tokens, client, password))
         return (client->setAuthenticated(true), true);
-    else if (client->getNickname().empty() && client->getUsername().empty() && !client->isAuthenticated())
-        errorMessage = "ERROR :You must set NICKNAME, USERNAME and authenticate with PASSWORD before sending commands\r\n";
+    else if (tokens[0] == "NICK" && client->checkNickname(tokens, client_fd))
+        return (client->setNickname(tokens[1]), true);
+    else if (tokens[0] == "USER" && client->checkUsername(tokens, client_fd))
+        return (client->setUsername(tokens[1]), true);
+    else if (tokens[0] == "QUIT")
+        return (OperatorCommands().Quit(tokens, client_fd), false);
+    else if (client->getNickname().empty() || client->getUsername().empty() || !client->isAuthenticated())
+        errorMessage = "ERROR :You must authenticate first\r\n";
     else if (tokens[0] == "KICK")
         return (OperatorCommands().Kick(tokens, client_fd), true);
     else if (tokens[0] == "INVITE")
@@ -36,7 +39,9 @@ bool Client::authenticator(std::string line, Client* client, std::string passwor
         return (OperatorCommands().Topic(tokens, client_fd), true);
     else if (tokens[0] == "MODE")
         return (OperatorCommands().Mode(tokens, client_fd), true);
-    send(client_fd, errorMessage.c_str(), errorMessage.length(), 0);
+    
+    if (!errorMessage.empty())
+        send(client_fd, errorMessage.c_str(), errorMessage.length(), 0);
     return false;
 }
 
@@ -56,12 +61,12 @@ bool Client::checkNickname(std::vector<std::string> tokens, int client_fd) const
 bool Client::checkUsername(std::vector<std::string> tokens, int client_fd) const {
     std::string errorMessage;
 
-    if (tokens.size() == 2)
+    // IRC USER command format: USER <user> <mode> <unused> :<realname>
+    // After split(), this becomes at least 4 tokens (USER, user, mode, unused)
+    if (tokens.size() >= 2)
         return true;
-    else if (tokens.size() < 2)
-        errorMessage = "ERROR :USERNAME command requires a username parameter\r\n";
     else
-        errorMessage = "ERROR :USERNAME command has too many parameters\r\n";
+        errorMessage = "ERROR :USERNAME command requires username parameter\r\n";
     send(client_fd, errorMessage.c_str(), errorMessage.length(), 0);
     return false;
 }
