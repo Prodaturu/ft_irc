@@ -20,6 +20,10 @@ void Server::authenticator(string line, Client *client, int client_fd)
     if (tokens.empty())
         return ;
 
+    // Ignore CAP command (just to make it work wiht irssi client)
+    if (tokens[0] == "CAP")
+        return;
+
     if (tokens[0] == "PASS" && checkPassword(tokens, client_fd))
         return (void)client->setAuthenticated(true);
     else if (tokens[0] == "NICK" && checkNickname(tokens, client_fd))

@@ -213,18 +213,36 @@ void Server::handleClientData(int client_fd)
 		// Process command through authenticator
 		authenticator(line, client, client_fd);
 		
-		// Send acknowledgment if fully authenticated
+		// Check if client just completed registration
 		if (client->isAuthenticated() && !client->getNickname().empty() && !client->getUsername().empty())
 		{
-			execCommand(line, client);
-			std::string response = ":" + client->getNickname() + " NOTICE :Command received\r\n";
-			ssize_t sent = send(client_fd, response.c_str(), response.length(), 0);
-
-			if (sent < 0) {
-				std::cerr << "[ERROR] send() failed for client " << client_fd << std::endl;
-				removeClient(client_fd);
-				return ;
+			// Send welcome messages if not yet registered
+			if (!client->isRegistered())
+			{
+				client->setRegistered(true);
+				std::string nick = client->getNickname();
+				
+				// 001 RPL_WELCOME
+				std::string welcome = ":localhost 001 " + nick + " :Welcome to the IRC Network " + nick + "!~" + client->getUsername() + "@localhost\r\n";
+				send(client_fd, welcome.c_str(), welcome.length(), 0);
+				
+				// 002 RPL_YOURHOST
+				std::string yourhost = ":localhost 002 " + nick + " :Your host is localhost, running version 1.0\r\n";
+				send(client_fd, yourhost.c_str(), yourhost.length(), 0);
+				
+				// 003 RPL_CREATED
+				std::string created = ":localhost 003 " + nick + " :This server was created sometime\r\n";
+				send(client_fd, created.c_str(), created.length(), 0);
+				
+				// 004 RPL_MYINFO
+				std::string myinfo = ":localhost 004 " + nick + " localhost 1.0 o o\r\n";
+				send(client_fd, myinfo.c_str(), myinfo.length(), 0);
+				
+				std::cout << "[REGISTERED] " << nick << " successfully registered" << std::endl;
 			}
+			
+			// Execute other commands after registration
+			execCommand(line, client);
 		}
 	}
 }
