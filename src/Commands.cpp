@@ -132,16 +132,18 @@ void Server::handlePrivmsg(stringList tokens, Client* client)
         return;
     }
 
+    // ERR_NORECIPIENT (411)
     if (tokens.size() < 2)
     {
-        std::string error = "ERROR :PRIVMSG command requires a target\r\n";
+        std::string error = ":localhost 411 " + client->getNickname() + " :No recipient given (PRIVMSG)\r\n";
         send(client->getFd(), error.c_str(), error.length(), 0);
         return;
     }
 
+    // ERR_NOTEXTTOSEND (412)
     if (tokens.size() < 3)
     {
-        std::string error = "ERROR :PRIVMSG command requires message text\r\n";
+        std::string error = ":localhost 412 " + client->getNickname() + " :No text to send\r\n";
         send(client->getFd(), error.c_str(), error.length(), 0);
         return;
     }
@@ -166,14 +168,16 @@ void Server::handlePrivmsg(stringList tokens, Client* client)
         Channel* channel = getChannelByName(target);
         if (!channel)
         {
-            std::string error = "ERROR :No such channel " + target + "\r\n";
+            // ERR_NOSUCHCHANNEL (403)
+            std::string error = ":localhost 403 " + client->getNickname() + " " + target + " :No such channel\r\n";
             send(client->getFd(), error.c_str(), error.length(), 0);
             return;
         }
 
+        // ERR_CANNOTSENDTOCHAN (404)
         if (!channel->hasMember(client))
         {
-            std::string error = "ERROR :Cannot send to channel (you're not in it)\r\n";
+            std::string error = ":localhost 404 " + client->getNickname() + " " + target + " :Cannot send to channel\r\n";
             send(client->getFd(), error.c_str(), error.length(), 0);
             return;
         }
@@ -200,7 +204,8 @@ void Server::handlePrivmsg(stringList tokens, Client* client)
 
         if (!recipient)
         {
-            std::string error = "ERROR :No such nick " + target + "\r\n";
+            // ERR_NOSUCHNICK (401)
+            std::string error = ":localhost 401 " + client->getNickname() + " " + target + " :No such nick/channel\r\n";
             send(client->getFd(), error.c_str(), error.length(), 0);
             return;
         }
