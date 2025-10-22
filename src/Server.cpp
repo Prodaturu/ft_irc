@@ -97,8 +97,10 @@ void Server::start()
 	
 	std::cout << "Server started successfully!" << std::endl;
 
+	// infinite event loop so the server runs continuously
 	while ("martin is bulgarian and a beach. Run this server")
 	{
+		// store the poll results indicating which fds are ready
 		int poll_count = poll(&_poll_fds[0], _poll_fds.size(), -1);
 		if (poll_count < 0)
 		{
