@@ -307,3 +307,8 @@ const std::string& Server::getPassword() const
 	return _password;
 }
 
+const ChannelList& Server::getChannels() const
+{
+	return _channels;
+}
+

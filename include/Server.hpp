@@ -53,6 +53,7 @@ class Server
 
         //getters
         const std::string& getPassword() const;
+        const ChannelList& getChannels() const;
         // Channel* getChannelByName(const string& name);
 
         //parse commands

@@ -37,7 +37,7 @@ void Server::execCommand(string line, Client* client)
     
     // we handle quit seperately from other OperatorCommands because it doesnt need a channel
     if (tokens[0] == "QUIT") {
-        OperatorCommands().Quit(tokens, client);
+        OperatorCommands().Quit(tokens, client, this);
         return;
     }
     
@@ -76,7 +76,7 @@ void OperatorCommands::Kick(stringList tokens, Client* client, Channel* channel)
 	kickMessageStream << ":" << client->getNickname() << "!user@" << "hostname"
 					  << " KICK " << channel->getName() << " " << client->getNickname()
 					  << " :" << tokens[3] << "\r\n";
-	std::string kickMessage = kickMessageStream.str();
+	string kickMessage = kickMessageStream.str();
 	channel->broadcast(kickMessage, client);
 }
 
@@ -94,7 +94,7 @@ void OperatorCommands::Topic(stringList tokens, Client* client, Channel* channel
     }
 
     if (tokens.size() == 2) {
-        std::string current_topic = channel->getTopic();
+        string current_topic = channel->getTopic();
         std::stringstream response;
         
         if (current_topic.empty()) {
@@ -103,7 +103,7 @@ void OperatorCommands::Topic(stringList tokens, Client* client, Channel* channel
             response << ":server TOPIC " << channel->getName() << " :" << current_topic << "\r\n";
         }
         
-        std::string reply = response.str();
+        string reply = response.str();
         send(client->getFd(), reply.c_str(), reply.length(), 0);
         return;
     }
@@ -119,7 +119,7 @@ void OperatorCommands::Topic(stringList tokens, Client* client, Channel* channel
         if (i < tokens.size() - 1)
             topicBuilder << " ";
     }
-    std::string new_topic = topicBuilder.str();
+    string new_topic = topicBuilder.str();
 
     channel->setTopic(new_topic);
 
@@ -127,12 +127,47 @@ void OperatorCommands::Topic(stringList tokens, Client* client, Channel* channel
     topicMessageStream << ":" << client->getNickname() << "!user@hostname"
                        << " TOPIC " << channel->getName()
                        << " :" << new_topic << "\r\n";
-    std::string topicMessage = topicMessageStream.str();
+    string topicMessage = topicMessageStream.str();
     channel->broadcast(topicMessage, NULL);
 }
 
 void OperatorCommands::Mode(stringList tokens, Client* client) { (void)tokens; (void)client; }
 
-void OperatorCommands::Quit(stringList tokens, Client* client) { (void)tokens; (void)client; }
+void OperatorCommands::Quit(stringList tokens, Client* client, Server* server) {
+    int client_fd = client->getFd();
+    string quit_reason = "Client quit";
+    
+    if (tokens.size() > 1) {
+        std::stringstream reason_builder;
+        for (size_t i = 1; i < tokens.size(); i++) {
+            reason_builder << tokens[i];
+            if (i < tokens.size() - 1)
+                reason_builder << " ";
+        }
+        quit_reason = reason_builder.str();
+    }
+
+    std::stringstream quit_message_stream;
+    quit_message_stream << ":" << client->getNickname() << "!user@hostname"
+                        << " QUIT :" << quit_reason << "\r\n";
+    string quit_message = quit_message_stream.str();
+
+    ChannelList channels = server->getChannels();
+    for (size_t i = 0; i < channels.size(); i++) {
+        Channel* channel = channels[i];
+        if (channel && channel->hasMember(client)) {
+            channel->broadcast(quit_message, client);
+            channel->removeMember(client);
+        }
+    }
+
+    std::stringstream quit_response;
+    quit_response << ":server QUIT :" << quit_reason << "\r\n";
+    string response = quit_response.str();
+
+    send(client_fd, response.c_str(), response.length(), MSG_DONTWAIT);
+
+    server->removeClient(client_fd);
+}
 
 void OperatorCommands::Join(stringList tokens, Client* client) { (void)tokens; (void)client; }
