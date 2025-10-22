@@ -12,6 +12,7 @@
 
 #include "../include/OperatorCommands.hpp"
 #include "../include/Server.hpp"
+#include "../include/Channel.hpp"
 
 void Server::execCommand(string line, Client* client)
 {

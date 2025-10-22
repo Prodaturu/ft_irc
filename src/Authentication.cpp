@@ -15,6 +15,7 @@
 
 void Server::authenticator(string line, Client *client, int client_fd)
 {
+    std::string errorMessage = "ERROR :Unknown command\r\n";
     stringList tokens = parser(line);
     if (tokens.empty())
         return ;

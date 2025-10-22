@@ -16,13 +16,14 @@
 #include <sstream>
 
 #include "Client.hpp"
-#include "Channel.hpp"
 
+class Channel;
 
 typedef std::string string;
 typedef std::vector<string> stringList;
 typedef std::vector<Client*> ClientList;
 typedef std::vector<Channel*> ChannelList;
+
 
 class Server
 {
@@ -52,7 +53,7 @@ class Server
 
         //getters
         const std::string& getPassword() const;
-        Channel* getChannelByName(const string& name);
+        // Channel* getChannelByName(const string& name);
 
         //parse commands
         

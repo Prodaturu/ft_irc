@@ -272,12 +272,3 @@ const std::string& Server::getPassword() const
 	return _password;
 }
 
-Channel* Server::getChannelByName(const string& name)
-{
-	for (size_t i = 0; i < _channels.size(); i++)
-	{
-		if (_channels[i]->getName() == name)
-			return _channels[i];
-	}
-	return NULL;
-}
