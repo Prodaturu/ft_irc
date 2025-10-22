@@ -10,7 +10,8 @@ SOURCES = main.cpp \
           src/Client.cpp \
           src/Channel.cpp \
           src/ChannelModes.cpp \
-          src/OperatorCommands.cpp
+          src/OperatorCommands.cpp \
+		  src/Parser.cpp
 
 OBJECTS = $(SOURCES:%.cpp=$(OBJDIR)/%.o)
 

@@ -12,12 +12,16 @@
 
 #include "../include/OperatorCommands.hpp"
 
-void OperatorCommands::Kick(std::vector<string> tokens, int client_fd) { (void)tokens; (void)client_fd; }
+void OperatorCommands::Kick(stringList tokens, Client* client) { 
+    if (!client->isAuthenticated())
+        return;
+    (void)tokens;
+}
 
-void OperatorCommands::Invite(std::vector<string> tokens, int client_fd) { (void)tokens; (void)client_fd; }
+void OperatorCommands::Invite(stringList tokens, Client* client) { (void)tokens; (void)client; }
 
-void OperatorCommands::Topic(std::vector<string> tokens, int client_fd) { (void)tokens; (void)client_fd; }
+void OperatorCommands::Topic(stringList tokens, Client* client) { (void)tokens; (void)client; }
 
-void OperatorCommands::Mode(std::vector<string> tokens, int client_fd) { (void)tokens; (void)client_fd; }
+void OperatorCommands::Mode(stringList tokens, Client* client) { (void)tokens; (void)client; }
 
-void OperatorCommands::Quit(std::vector<string> tokens, int client_fd) { (void)tokens; (void)client_fd; }
+void OperatorCommands::Quit(stringList tokens, Client* client) { (void)tokens; (void)client; }

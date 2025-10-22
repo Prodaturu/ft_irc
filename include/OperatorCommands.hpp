@@ -16,15 +16,18 @@
 #include <string>
 #include <vector>
 
+#include "Client.hpp"
+
 typedef std::string string;
+typedef std::vector<string> stringList;
 
 class OperatorCommands {
     public:
-        void Kick(std::vector<string> tokens, int client_fd);
-        void Invite(std::vector<string> tokens, int client_fd);
-        void Topic(std::vector<string> tokens, int client_fd);
-        void Mode(std::vector<string> tokens, int client_fd);
-        void Quit(std::vector<string> tokens, int client_fd);
+        void Kick(stringList tokens, Client* client);
+        void Invite(stringList tokens, Client* client);
+        void Topic(stringList tokens, Client* client);
+        void Mode(stringList tokens, Client* client);
+        void Quit(stringList tokens, Client* client);
 };
 
 #endif

@@ -20,16 +20,21 @@
 // Forward declaration to avoid circular include (Channel.hpp includes Server.hpp)
 class Channel;
 
+typedef std::string string;
+typedef std::vector<string> stringList;
+typedef std::vector<Client*> ClientList;
+typedef std::vector<Channel*> ChannelList;
+
 class Server
 {
 
     private:
         int _server_fd;
         int _port;
-        std::string _password;
+        string _password;
         std::vector<struct pollfd> _poll_fds;
-        std::vector<Client*> _clients;
-        std::vector<Channel*> _channels;
+        ClientList _clients;
+        ChannelList _channels;
 
         void setupSocket();
         void setupServer();
@@ -48,18 +53,16 @@ class Server
         const std::string& getPassword() const;
 
         //parse commands
+        
+        //authentication
+        void authenticator(string line, Client* client, int client_fd) const;
+        bool checkNickname(stringList tokens, int client_fd) const;
+        bool checkUsername(stringList tokens, int client_fd) const;
+        bool checkPassword(stringList tokens, int client_fd) const;
 
         //helper function temp
-        static std::vector<std::string> split(const std::string &input) {
-            std::vector<std::string> tokens;
-            std::istringstream iss(input);
-            std::string token;
+        stringList parser(const string &input) const;
 
-            while (iss >> token) // automatically splits by whitespace
-                tokens.push_back(token);
-
-            return tokens;
-        }
 };
 
 #endif

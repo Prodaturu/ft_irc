@@ -200,8 +200,6 @@ void Server::handleClientData(int client_fd)
 	if (!client)
 		return;
 	client->appendToBuffer(std::string(buffer, bytes_received));
-	// std::cout << "[DEBUG] Received " << bytes_received << " bytes from client " << client_fd << std::endl;
-	// std::cout << "[DEBUG] Buffer after append: \"" << client->getBuffer() << "\"" << std::endl;
 	while (client->hasCompleteLine()) {
 		std::string line = client->extractLine();
 		if (line.empty())
@@ -210,7 +208,7 @@ void Server::handleClientData(int client_fd)
 		std::cout << "[RECV] FD=" << client_fd << ": \"" << line << "\"" << std::endl;
 		
 		// Process command through authenticator
-		client->authenticator(line, client, _password, client_fd);
+		authenticator(line, client, client_fd);
 		
 		// Send acknowledgment if fully authenticated
 		if (client->isAuthenticated() && !client->getNickname().empty() && !client->getUsername().empty())
