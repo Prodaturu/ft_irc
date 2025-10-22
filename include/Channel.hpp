@@ -11,6 +11,15 @@
 typedef std::string string;
 typedef std::vector<Client*> ClientList;
 
+class Modes {
+    public:
+        bool i; // Set/remove Invite-only channel
+        bool t; // Set/remove the restrictions of the TOPIC command to channel operators
+        bool k; // Set/remove the channel key (password)
+        bool o; // Give/take channel operator privilege
+        bool l; // Set/remove the user limit to channel
+}
+
 class Channel {
 
     private:
@@ -19,12 +28,10 @@ class Channel {
         ClientList operators;
         ClientList members;
         ClientList invitedClients;
+        Modes modes;
 
     public:
-        Channel(const string& name);
-        ~Channel();
-        Channel(const Channel &toCopy);
-        Channel &operator=(const Channel &toCopy);
+        Channel(const string& name, const string& topic = "", const Modes& modes = Modes(), );
 
         //getters
         const string& getName() const;
