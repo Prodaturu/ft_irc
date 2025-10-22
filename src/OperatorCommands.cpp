@@ -32,7 +32,7 @@ void Server::execCommand(string line, Client* client)
     else if (tokens[0] == "INVITE")
         OperatorCommands().Invite(tokens, client);
     else if (tokens[0] == "TOPIC")
-        OperatorCommands().Topic(tokens, client);
+        OperatorCommands().Topic(tokens, client, channel);
     else if (tokens[0] == "MODE")
         OperatorCommands().Mode(tokens, client);
     else if (tokens[0] == "QUIT")
@@ -61,7 +61,54 @@ void OperatorCommands::Kick(stringList tokens, Client* client, Channel* channel)
 
 void OperatorCommands::Invite(stringList tokens, Client* client) { (void)tokens; (void)client; }
 
-void OperatorCommands::Topic(stringList tokens, Client* client) { (void)tokens; (void)client; }
+void OperatorCommands::Topic(stringList tokens, Client* client, Channel* channel) {
+    if (tokens.size() < 2) {
+        send(client->getFd(), "ERROR: TOPIC command requires a channel parameter\r\n", 53, 0);
+        return;
+    }
+
+    if (channel == NULL) {
+        send(client->getFd(), "ERROR: No such channel\r\n", 24, 0);
+        return;
+    }
+
+    if (tokens.size() == 2) {
+        std::string current_topic = channel->getTopic();
+        std::stringstream response;
+        
+        if (current_topic.empty()) {
+            response << ":server TOPIC " << channel->getName() << " :\r\n";
+        } else {
+            response << ":server TOPIC " << channel->getName() << " :" << current_topic << "\r\n";
+        }
+        
+        std::string reply = response.str();
+        send(client->getFd(), reply.c_str(), reply.length(), 0);
+        return;
+    }
+
+    if (!channel->isOperator(client)) {
+        send(client->getFd(), "ERROR: You are not a channel operator\r\n", 39, 0);
+        return;
+    }
+
+    std::stringstream topicBuilder;
+    for (size_t i = 2; i < tokens.size(); i++) {
+        topicBuilder << tokens[i];
+        if (i < tokens.size() - 1)
+            topicBuilder << " ";
+    }
+    std::string new_topic = topicBuilder.str();
+
+    channel->setTopic(new_topic);
+
+    std::stringstream topicMessageStream;
+    topicMessageStream << ":" << client->getNickname() << "!user@hostname"
+                       << " TOPIC " << channel->getName()
+                       << " :" << new_topic << "\r\n";
+    std::string topicMessage = topicMessageStream.str();
+    channel->broadcast(topicMessage, NULL);
+}
 
 void OperatorCommands::Mode(stringList tokens, Client* client) { (void)tokens; (void)client; }
 

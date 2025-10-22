@@ -35,5 +35,9 @@ stringList Server::parser(const string &input) const {
         tokens.push_back(token);
     }
     std::transform(tokens[0].begin(), tokens[0].end(), tokens[0].begin(), ::toupper);
+    for (size_t i = 1; i < tokens.size(); i++)
+    {
+        std::cout << "Token " << i << ": " << tokens[i] << std::endl;
+    }
     return tokens;
 }
