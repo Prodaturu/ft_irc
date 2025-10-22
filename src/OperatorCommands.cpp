@@ -196,52 +196,72 @@ void OperatorCommands::Invite(stringList tokens, Client* client, Channel* channe
 }
 
 void OperatorCommands::Topic(stringList tokens, Client* client, Channel* channel) {
+    //how to use: TOPIC #channel [new topic]
+    
     if (tokens.size() < 2) {
-        send(client->getFd(), "ERROR: TOPIC command requires a channel parameter\r\n", 53, 0);
+        // ERR_NEEDMOREPARAMS (461)
+        std::string error = ":localhost 461 " + client->getNickname() + " TOPIC :Not enough parameters\r\n";
+        send(client->getFd(), error.c_str(), error.length(), 0);
         return;
     }
 
     if (channel == NULL) {
-        send(client->getFd(), "ERROR: No such channel\r\n", 24, 0);
+        // ERR_NOSUCHCHANNEL (403)
+        std::string error = ":localhost 403 " + client->getNickname() + " " + tokens[1] + " :No such channel\r\n";
+        send(client->getFd(), error.c_str(), error.length(), 0);
+        return;
+    }
+
+    // Check if client is in the channel
+    if (!channel->hasMember(client)) {
+        // ERR_NOTONCHANNEL (442)
+        std::string error = ":localhost 442 " + client->getNickname() + " " + channel->getName() + " :You're not on that channel\r\n";
+        send(client->getFd(), error.c_str(), error.length(), 0);
         return;
     }
 
     if (tokens.size() == 2) {
         string current_topic = channel->getTopic();
-        std::stringstream response;
         
         if (current_topic.empty()) {
-            response << ":server TOPIC " << channel->getName() << " :\r\n";
+            // RPL_NOTOPIC (331)
+            std::string response = ":localhost 331 " + client->getNickname() + " " + channel->getName() + " :No topic is set\r\n";
+            send(client->getFd(), response.c_str(), response.length(), 0);
         } else {
-            response << ":server TOPIC " << channel->getName() << " :" << current_topic << "\r\n";
+            // RPL_TOPIC (332)
+            std::string response = ":localhost 332 " + client->getNickname() + " " + channel->getName() + " :" + current_topic + "\r\n";
+            send(client->getFd(), response.c_str(), response.length(), 0);
         }
-        
-        string reply = response.str();
-        send(client->getFd(), reply.c_str(), reply.length(), 0);
         return;
     }
 
-    if (!channel->isOperator(client)) {
-        send(client->getFd(), "ERROR: You are not a channel operator\r\n", 39, 0);
+    const Modes& modes = channel->getModes();
+    if (modes.t && !channel->isOperator(client)) {
+        // ERR_CHANOPRIVSNEEDED (482)
+        std::string error = ":localhost 482 " + client->getNickname() + " " + channel->getName() + " :You're not channel operator\r\n";
+        send(client->getFd(), error.c_str(), error.length(), 0);
         return;
     }
 
-    std::stringstream topicBuilder;
+    std::string new_topic = "";
     for (size_t i = 2; i < tokens.size(); i++) {
-        topicBuilder << tokens[i];
-        if (i < tokens.size() - 1)
-            topicBuilder << " ";
+        if (i > 2)
+            new_topic += " ";
+        new_topic += tokens[i];
     }
-    string new_topic = topicBuilder.str();
+    
+    if (!new_topic.empty() && new_topic[0] == ':')
+        new_topic = new_topic.substr(1);
 
     channel->setTopic(new_topic);
 
-    std::stringstream topicMessageStream;
-    topicMessageStream << ":" << client->getNickname() << "!user@hostname"
-                       << " TOPIC " << channel->getName()
-                       << " :" << new_topic << "\r\n";
-    string topicMessage = topicMessageStream.str();
+    std::string topicMessage = ":" + client->getNickname() + "!~" + client->getUsername()
+                             + "@localhost TOPIC " + channel->getName()
+                             + " :" + new_topic + "\r\n";
     channel->broadcast(topicMessage, NULL);
+    
+    std::cout << "[TOPIC] " << client->getNickname() << " changed topic of " 
+              << channel->getName() << " to: " << new_topic << std::endl;
 }
 
 void OperatorCommands::Mode(stringList tokens, Client* client) { (void)tokens; (void)client; }

@@ -22,6 +22,10 @@ size_t Channel::getMemberCount() const {
     return members.size();
 }
 
+const Modes& Channel::getModes() const {
+    return modes;
+}
+
 bool Channel::hasMember(Client* client) const {
     for (size_t i = 0; i < members.size(); i++) {
         if(members[i] == client)

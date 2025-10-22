@@ -40,6 +40,7 @@ class Channel {
         const string& getKey() const;
         const ClientList& getMembers() const;
         size_t getMemberCount() const;
+        const Modes& getModes() const;
 
         bool hasMember(Client* client) const;
         void addMember(Client* client);
