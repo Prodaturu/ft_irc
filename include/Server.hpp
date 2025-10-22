@@ -16,9 +16,8 @@
 #include <sstream>
 
 #include "Client.hpp"
+#include "Channel.hpp"
 
-// Forward declaration to avoid circular include (Channel.hpp includes Server.hpp)
-class Channel;
 
 typedef std::string string;
 typedef std::vector<string> stringList;
@@ -53,6 +52,7 @@ class Server
 
         //getters
         const std::string& getPassword() const;
+        Channel* getChannelByName(const string& name);
 
         //parse commands
         
@@ -65,8 +65,11 @@ class Server
         //commands
         void handleJoin(stringList tokens, Client* client);
 
-        //helper function temp
+        //parse commands
         stringList parser(const string &input) const;
+
+        // exec commands
+        void execCommand(string line, Client* client);
 
 };
 

@@ -216,6 +216,7 @@ void Server::handleClientData(int client_fd)
 		// Send acknowledgment if fully authenticated
 		if (client->isAuthenticated() && !client->getNickname().empty() && !client->getUsername().empty())
 		{
+			execCommand(line, client);
 			std::string response = ":" + client->getNickname() + " NOTICE :Command received\r\n";
 			ssize_t sent = send(client_fd, response.c_str(), response.length(), 0);
 
@@ -269,4 +270,14 @@ Client* Server::getClientByFd(int client_fd)
 const std::string& Server::getPassword() const
 {
 	return _password;
+}
+
+Channel* Server::getChannelByName(const string& name)
+{
+	for (size_t i = 0; i < _channels.size(); i++)
+	{
+		if (_channels[i]->getName() == name)
+			return _channels[i];
+	}
+	return NULL;
 }

@@ -29,18 +29,8 @@ void Server::authenticator(string line, Client *client, int client_fd)
         client->setRealname(tokens[4]);
         return ;
     }
-    else if (tokens[0] == "JOIN")
-        handleJoin(tokens, client);
-    else if (tokens[0] == "QUIT")
-        OperatorCommands().Quit(tokens, client);
-    else if (tokens[0] == "KICK") 
-        OperatorCommands().Kick(tokens, client);
-    else if (tokens[0] == "INVITE")
-        OperatorCommands().Invite(tokens, client);
-    else if (tokens[0] == "TOPIC")
-        OperatorCommands().Topic(tokens, client);
-    else if (tokens[0] == "MODE")
-        OperatorCommands().Mode(tokens, client);
+    if (!client->isAuthenticated() || client->getNickname().empty() || client->getUsername().empty())
+        send(client_fd, errorMessage.c_str(), errorMessage.length(), 0);
 }
 
 bool Server::checkNickname(stringList tokens, int client_fd) const
