@@ -18,16 +18,33 @@ void Server::execCommand(string line, Client* client)
 {
     stringList tokens = parser(line);
     if (tokens.empty())
-    return ;
+        return ;
+    
+    if (tokens[0] == "PASS" || tokens[0] == "NICK" || tokens[0] == "USER")
+        return;
+    
+    // handle seperately because it can create channels
+    if (tokens[0] == "JOIN") {
+        handleJoin(tokens, client);
+        return ;
+    }
+    
+    // we handle quit seperately from other OperatorCommands because it doesnt need a channel
+    if (tokens[0] == "QUIT") {
+        OperatorCommands().Quit(tokens, client);
+        return;
+    }
+    
+    if (tokens.size() < 2)
+        return;
+    
     Channel* channel = getChannelByName(tokens[1]);
     if (!channel) {
         send(client->getFd(), "ERROR: No such channel\r\n", 24, 0);
         return;
     }
 
-    if (tokens[0] == "JOIN")
-        OperatorCommands().Join(tokens, client);
-    else if (tokens[0] == "KICK") 
+    if (tokens[0] == "KICK") 
         OperatorCommands().Kick(tokens, client, channel);
     else if (tokens[0] == "INVITE")
         OperatorCommands().Invite(tokens, client);
@@ -35,8 +52,6 @@ void Server::execCommand(string line, Client* client)
         OperatorCommands().Topic(tokens, client, channel);
     else if (tokens[0] == "MODE")
         OperatorCommands().Mode(tokens, client);
-    else if (tokens[0] == "QUIT")
-        OperatorCommands().Quit(tokens, client);
 }
 
 void OperatorCommands::Kick(stringList tokens, Client* client, Channel* channel) {
