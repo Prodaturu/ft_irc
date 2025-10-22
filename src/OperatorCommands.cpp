@@ -61,23 +61,68 @@ void Server::execCommand(string line, Client* client)
 }
 
 void OperatorCommands::Kick(stringList tokens, Client* client, Channel* channel) {
-    if (tokens.size() < 2) {
-        send(client->getFd(), "ERROR: KICK command requires a channel parameter\r\n", 48, 0);
+    
+    if (tokens.size() < 3) {
+        // ERR_NEEDMOREPARAMS (461)
+        std::string error = ":localhost 461 " + client->getNickname() + " KICK :Not enough parameters\r\n";
+        send(client->getFd(), error.c_str(), error.length(), 0);
+        return;
+    }
+
+    if (!channel->hasMember(client)) {
+        // ERR_NOTONCHANNEL (442)
+        std::string error = ":localhost 442 " + client->getNickname() + " " + channel->getName() + " :You're not on that channel\r\n";
+        send(client->getFd(), error.c_str(), error.length(), 0);
         return;
     }
 
     if (!channel->isOperator(client)) {
-        send(client->getFd(), "ERROR: You are not a channel operator\r\n", 39, 0);
+        // ERR_CHANOPRIVSNEEDED (482)
+        std::string error = ":localhost 482 " + client->getNickname() + " " + channel->getName() + " :You're not channel operator\r\n";
+        send(client->getFd(), error.c_str(), error.length(), 0);
         return;
     }
 
-    channel->removeMember(client);
-    std::stringstream kickMessageStream;
-	kickMessageStream << ":" << client->getNickname() << "!user@" << "hostname"
-					  << " KICK " << channel->getName() << " " << client->getNickname()
-					  << " :" << tokens[3] << "\r\n";
-	string kickMessage = kickMessageStream.str();
-	channel->broadcast(kickMessage, client);
+    string target_nick = tokens[2];
+    
+    Client* target = NULL;
+    const ClientList& members = channel->getMembers();
+    for (size_t i = 0; i < members.size(); i++) {
+        if (members[i]->getNickname() == target_nick) {
+            target = members[i];
+            break;
+        }
+    }
+
+    if (!target) {
+        // ERR_USERNOTINCHANNEL (441)
+        std::string error = ":localhost 441 " + client->getNickname() + " " + target_nick + " " + channel->getName() + " :They aren't on that channel\r\n";
+        send(client->getFd(), error.c_str(), error.length(), 0);
+        return;
+    }
+
+    string reason = client->getNickname();
+    if (tokens.size() >= 4) {
+        reason = "";
+        for (size_t i = 3; i < tokens.size(); i++) {
+            if (i > 3)
+                reason += " ";
+            reason += tokens[i];
+        }
+        if (!reason.empty() && reason[0] == ':')
+            reason = reason.substr(1);
+    }
+
+    std::string kickMessage = ":" + client->getNickname() + "!~" + client->getUsername() 
+                            + "@localhost KICK " + channel->getName() + " " + target_nick 
+                            + " :" + reason + "\r\n";
+    
+    channel->broadcast(kickMessage, NULL);
+
+    channel->removeMember(target);
+    
+    std::cout << "[KICK] " << client->getNickname() << " kicked " << target_nick 
+              << " from " << channel->getName() << " (" << reason << ")" << std::endl;
 }
 
 void OperatorCommands::Invite(stringList tokens, Client* client, Channel* channel, Server* server) {
