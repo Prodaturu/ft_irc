@@ -70,6 +70,28 @@ void Channel::removeOperator(Client* client) {
     }
 }
 
+bool Channel::isInvited(Client* client) const {
+    for (size_t i = 0; i < invitedClients.size(); i++) {
+        if (invitedClients[i] == client)
+            return true;
+    }
+    return false;
+}
+
+void Channel::addInvited(Client* client) {
+    if (!isInvited(client))
+        invitedClients.push_back(client);
+}
+
+void Channel::removeInvited(Client* client) {
+    for (size_t i = 0; i < invitedClients.size(); i++) {
+        if (invitedClients[i] == client) {
+            invitedClients.erase(invitedClients.begin() + i);
+            break;
+        }
+    }
+}
+
 void Channel::setTopic(const std::string& topic) {
     this->topic = topic;
 }

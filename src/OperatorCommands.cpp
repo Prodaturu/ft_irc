@@ -53,7 +53,7 @@ void Server::execCommand(string line, Client* client)
     if (tokens[0] == "KICK") 
         OperatorCommands().Kick(tokens, client, channel);
     else if (tokens[0] == "INVITE")
-        OperatorCommands().Invite(tokens, client);
+        OperatorCommands().Invite(tokens, client, channel, this);
     else if (tokens[0] == "TOPIC")
         OperatorCommands().Topic(tokens, client, channel);
     else if (tokens[0] == "MODE")
@@ -80,7 +80,75 @@ void OperatorCommands::Kick(stringList tokens, Client* client, Channel* channel)
 	channel->broadcast(kickMessage, client);
 }
 
-void OperatorCommands::Invite(stringList tokens, Client* client) { (void)tokens; (void)client; }
+void OperatorCommands::Invite(stringList tokens, Client* client, Channel* channel, Server* server) {
+
+    if (tokens.size() < 3) {
+        std::stringstream error;
+        error << ":server 461 " << client->getNickname() 
+              << " INVITE :Not enough parameters\r\n";
+        send(client->getFd(), error.str().c_str(), error.str().length(), 0);
+        return;
+    }
+    
+    if (tokens[2] != channel->getName()) {
+        std::stringstream error;
+        error << ":server 403 " << client->getNickname() 
+              << " " << tokens[2] << " :No such channel\r\n";
+        send(client->getFd(), error.str().c_str(), error.str().length(), 0);
+        return;
+    }
+
+    if (!channel->isOperator(client)) {
+        std::stringstream error;
+        error << ":server 482 " << client->getNickname() 
+              << " " << channel->getName() 
+              << " :You're not channel operator\r\n";
+        send(client->getFd(), error.str().c_str(), error.str().length(), 0);
+        return;
+    }
+
+    Client* target_client = server->getClientByNickname(tokens[1]);
+    if (!target_client) {
+        std::stringstream error;
+        error << ":server 401 " << client->getNickname() 
+              << " " << tokens[1] << " :No such nick/channel\r\n";
+        send(client->getFd(), error.str().c_str(), error.str().length(), 0);
+        return;
+    }
+
+    if (channel->hasMember(target_client)) {
+        std::stringstream error;
+        error << ":server 443 " << client->getNickname() 
+              << " " << tokens[1] 
+              << " " << channel->getName() 
+              << " :is already on channel\r\n";
+        send(client->getFd(), error.str().c_str(), error.str().length(), 0);
+        return;
+    }
+
+    channel->addInvited(target_client);
+
+    std::stringstream invite_msg_stream;
+    invite_msg_stream << ":" << client->getNickname() << "!user@hostname"
+                      << " INVITE " << tokens[1]
+                      << " :" << channel->getName() << "\r\n";
+    std::string invite_msg = invite_msg_stream.str();
+    send(target_client->getFd(), invite_msg.c_str(), invite_msg.length(), 0);
+
+    std::stringstream confirm_msg_stream;
+    confirm_msg_stream << ":server 341 " << client->getNickname()
+                       << " " << tokens[1]
+                       << " " << channel->getName() << "\r\n";
+    std::string confirm_msg = confirm_msg_stream.str();
+    send(client->getFd(), confirm_msg.c_str(), confirm_msg.length(), 0);
+
+    std::stringstream broadcast_stream;
+    broadcast_stream << ":" << client->getNickname() << "!user@hostname"
+                     << " NOTICE " << channel->getName()
+                     << " :" << tokens[1] << " has been invited\r\n";
+    std::string broadcast_msg = broadcast_stream.str();
+    channel->broadcast(broadcast_msg, NULL);
+}
 
 void OperatorCommands::Topic(stringList tokens, Client* client, Channel* channel) {
     if (tokens.size() < 2) {

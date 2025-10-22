@@ -312,3 +312,13 @@ const ChannelList& Server::getChannels() const
 	return _channels;
 }
 
+Client* Server::getClientByNickname(const string& nickname) const
+{
+	for (size_t i = 0; i < _clients.size(); i++)
+	{
+		if (_clients[i]->getNickname() == nickname)
+			return _clients[i];
+	}
+	return NULL;
+}
+

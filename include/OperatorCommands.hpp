@@ -27,7 +27,7 @@ typedef std::vector<string> stringList;
 class OperatorCommands {
     public:
         void Kick(stringList tokens, Client* client, Channel* channel);
-        void Invite(stringList tokens, Client* client);
+        void Invite(stringList tokens, Client* client, Channel* channel, Server* server);
         void Topic(stringList tokens, Client* client, Channel* channel);
         void Mode(stringList tokens, Client* client);
         void Quit(stringList tokens, Client* client, Server* server);

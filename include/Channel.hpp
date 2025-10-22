@@ -49,6 +49,10 @@ class Channel {
         void addOperator(Client* client);
         void removeOperator(Client* client);
 
+        bool isInvited(Client* client) const;
+        void addInvited(Client* client);
+        void removeInvited(Client* client);
+
         void setTopic(const string& topic);
         void setKey(const string& key);
 
