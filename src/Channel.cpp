@@ -2,22 +2,6 @@
 
 Channel::Channel(const std::string& name) : name (name) {}
 
-Channel::~Channel(){}
-
-Channel::Channel(const Channel &toCopy) {
-    *this = toCopy;
-}
-
-Channel &Channel::operator=(const Channel &toCopy) {
-    if (this != &toCopy) {
-        name = toCopy.name;
-        topic = toCopy.topic;
-        operators = toCopy.operators;
-        members = toCopy.members;
-    }
-    return *this;
-}
-
 const std::string& Channel::getName() const {
     return name;
 }

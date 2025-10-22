@@ -18,7 +18,7 @@ class Modes {
         bool k; // Set/remove the channel key (password)
         bool o; // Give/take channel operator privilege
         bool l; // Set/remove the user limit to channel
-}
+};
 
 class Channel {
 
@@ -31,7 +31,7 @@ class Channel {
         Modes modes;
 
     public:
-        Channel(const string& name, const string& topic = "", const Modes& modes = Modes(), );
+        Channel(const std::string& name);
 
         //getters
         const string& getName() const;
