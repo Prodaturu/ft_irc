@@ -26,13 +26,14 @@ void Server::authenticator(string line, Client *client, int client_fd) const
         return ;
 
     if (tokens[0] == "PASS" && checkPassword(tokens, client_fd))
-        client->setAuthenticated(true);
+        return (void)client->setAuthenticated(true);
     else if (tokens[0] == "NICK" && checkNickname(tokens, client_fd))
-        client->setNickname(tokens[1]);
+        return (void)client->setNickname(tokens[1]);
     else if (tokens[0] == "USER" && checkUsername(tokens, client_fd))
     {
         client->setUsername(tokens[1]);
         client->setRealname(tokens[4]);
+        return ;
     }
     else if (tokens[0] == "QUIT")
         OperatorCommands().Quit(tokens, client);
