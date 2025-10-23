@@ -29,7 +29,7 @@ class OperatorCommands {
         void Kick(stringList tokens, Client* client, Channel* channel);
         void Invite(stringList tokens, Client* client, Channel* channel, Server* server);
         void Topic(stringList tokens, Client* client, Channel* channel);
-        void Mode(stringList tokens, Client* client);
+        void Mode(stringList tokens, Client* client, Channel* channel, Server* server);
         void Quit(stringList tokens, Client* client, Server* server);
         void Join(stringList tokens, Client* client);
         
