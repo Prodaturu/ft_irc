@@ -26,6 +26,7 @@ class Channel {
         string name;
         string topic;
         string key;  // Channel password/key
+        size_t userLimit; // User limit (0 = no limit)
         ClientList operators;
         ClientList members;
         ClientList invitedClients;
@@ -56,6 +57,14 @@ class Channel {
 
         void setTopic(const string& topic);
         void setKey(const string& key);
+        void setUserLimit(size_t limit);
+        size_t getUserLimit() const;
+        
+        // Mode setters
+        void setModeI(bool value);
+        void setModeT(bool value);
+        void setModeK(bool value);
+        void setModeL(bool value);
 
         void broadcast(const string& message, Client* exclude = NULL);
 };

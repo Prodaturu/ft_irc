@@ -161,10 +161,8 @@ void Server::handlePrivmsg(stringList tokens, Client* client)
     if (!message.empty() && message[0] == ':')
         message = message.substr(1);
 
-    // Check if target is a channel (starts with # or &)
     if (!target.empty() && (target[0] == '#' || target[0] == '&'))
     {
-        // Message to channel
         Channel* channel = getChannelByName(target);
         if (!channel)
         {

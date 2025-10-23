@@ -57,7 +57,7 @@ void Server::execCommand(string line, Client* client)
     else if (tokens[0] == "TOPIC")
         OperatorCommands().Topic(tokens, client, channel);
     else if (tokens[0] == "MODE")
-        OperatorCommands().Mode(tokens, client);
+        OperatorCommands().Mode(tokens, client, channel, this);
 }
 
 void OperatorCommands::Kick(stringList tokens, Client* client, Channel* channel) {
@@ -264,7 +264,148 @@ void OperatorCommands::Topic(stringList tokens, Client* client, Channel* channel
               << channel->getName() << " to: " << new_topic << std::endl;
 }
 
-void OperatorCommands::Mode(stringList tokens, Client* client) { (void)tokens; (void)client; }
+void OperatorCommands::Mode(stringList tokens, Client* client, Channel* channel, Server* server) {
+    // MODE #channel [+/-modes] [parameters]
+    
+    if (tokens.size() < 2) {
+        // ERR_NEEDMOREPARAMS (461)
+        std::string error = ":localhost 461 " + client->getNickname() + " MODE :Not enough parameters\r\n";
+        send(client->getFd(), error.c_str(), error.length(), 0);
+        return;
+    }
+
+    // Query mode (no mode changes specified)
+    if (tokens.size() == 2) {
+        const Modes& modes = channel->getModes();
+        std::string mode_string = "+";
+        if (modes.i) mode_string += "i";
+        if (modes.t) mode_string += "t";
+        if (modes.k) mode_string += "k";
+        if (modes.l) mode_string += "l";
+        
+        // RPL_CHANNELMODEIS (324)
+        std::string response = ":localhost 324 " + client->getNickname() + " " + channel->getName() + " " + mode_string + "\r\n";
+        send(client->getFd(), response.c_str(), response.length(), 0);
+        return;
+    }
+
+    // Check if client is an operator
+    if (!channel->isOperator(client)) {
+        // ERR_CHANOPRIVSNEEDED (482)
+        std::string error = ":localhost 482 " + client->getNickname() + " " + channel->getName() + " :You're not channel operator\r\n";
+        send(client->getFd(), error.c_str(), error.length(), 0);
+        return;
+    }
+
+    string modestring = tokens[2];
+    bool adding = true;
+    size_t param_index = 3;
+    
+    std::string applied_modes = "";
+    std::string applied_params = "";
+
+    for (size_t i = 0; i < modestring.length(); i++) {
+        char mode = modestring[i];
+        
+        if (mode == '+') {
+            adding = true;
+            continue;
+        } else if (mode == '-') {
+            adding = false;
+            continue;
+        }
+
+        if (mode == 'i') {
+            // invite only mode
+            channel->setModeI(adding);
+            applied_modes += (adding ? "+" : "-");
+            applied_modes += "i";
+        }
+        else if (mode == 't') {
+            // topic restriction
+            channel->setModeT(adding);
+            applied_modes += (adding ? "+" : "-");
+            applied_modes += "t";
+        }
+        else if (mode == 'k') {
+            // channel key (pw)
+            if (adding) {
+                if (param_index < tokens.size()) {
+                    string key = tokens[param_index++];
+                    channel->setKey(key);
+                    channel->setModeK(true);
+                    applied_modes += "+k";
+                    applied_params += " " + key;
+                }
+            } else {
+                channel->setKey("");
+                channel->setModeK(false);
+                applied_modes += "-k";
+            }
+        }
+        else if (mode == 'o') {
+            if (param_index < tokens.size()) {
+                string target_nick = tokens[param_index++];
+                Client* target = server->getClientByNickname(target_nick);
+                
+                if (!target) {
+                    // ERR_NOSUCHNICK (401)
+                    std::string error = ":localhost 401 " + client->getNickname() + " " + target_nick + " :No such nick/channel\r\n";
+                    send(client->getFd(), error.c_str(), error.length(), 0);
+                    continue;
+                }
+                
+                if (!channel->hasMember(target)) {
+                    // ERR_USERNOTINCHANNEL (441)
+                    std::string error = ":localhost 441 " + client->getNickname() + " " + target_nick + " " + channel->getName() + " :They aren't on that channel\r\n";
+                    send(client->getFd(), error.c_str(), error.length(), 0);
+                    continue;
+                }
+                
+                if (adding) {
+                    channel->addOperator(target);
+                } else {
+                    channel->removeOperator(target);
+                }
+                applied_modes += (adding ? "+o" : "-o");
+                applied_params += " " + target_nick;
+            }
+        }
+        else if (mode == 'l') {
+            // User limit
+            if (adding) {
+                if (param_index < tokens.size()) {
+                    string limit_str = tokens[param_index++];
+                    size_t limit = std::atoi(limit_str.c_str());
+                    channel->setUserLimit(limit);
+                    channel->setModeL(true);
+                    applied_modes += "+l";
+                    applied_params += " " + limit_str;
+                }
+            } else {
+                channel->setUserLimit(0);
+                channel->setModeL(false);
+                applied_modes += "-l";
+            }
+        }
+        else {
+            // ERR_UNKNOWNMODE (472)
+            std::string error = ":localhost 472 " + client->getNickname() + " " + string(1, mode) + " :is unknown mode char to me\r\n";
+            send(client->getFd(), error.c_str(), error.length(), 0);
+            std::cout << "[MODE] Unknown mode '" << mode << "' attempted by " << client->getNickname() << " on " << channel->getName() << std::endl;
+        }
+    }
+
+    // Broadcast mode changes to all channel members
+    if (!applied_modes.empty()) {
+        std::string mode_msg = ":" + client->getNickname() + "!~" + client->getUsername()
+                             + "@localhost MODE " + channel->getName() + " " + applied_modes + applied_params + "\r\n";
+        channel->broadcast(mode_msg, NULL);
+        
+        std::cout << "[MODE] " << client->getNickname() << " set modes on " 
+                  << channel->getName() << ": " << applied_modes << applied_params << std::endl;
+    }
+}
 
 void OperatorCommands::Quit(stringList tokens, Client* client, Server* server) {
     int client_fd = client->getFd();

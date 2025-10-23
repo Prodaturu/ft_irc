@@ -1,6 +1,12 @@
 #include "../include/Channel.hpp"
 
-Channel::Channel(const std::string& name) : name (name) {}
+Channel::Channel(const std::string& name) : name(name), userLimit(0) {
+    modes.i = false;
+    modes.t = false;
+    modes.k = false;
+    modes.o = false;
+    modes.l = false;
+}
 
 const std::string& Channel::getName() const {
     return name;
@@ -102,6 +108,30 @@ void Channel::setTopic(const std::string& topic) {
 
 void Channel::setKey(const std::string& key) {
     this->key = key;
+}
+
+void Channel::setUserLimit(size_t limit) {
+    this->userLimit = limit;
+}
+
+size_t Channel::getUserLimit() const {
+    return userLimit;
+}
+
+void Channel::setModeI(bool value) {
+    modes.i = value;
+}
+
+void Channel::setModeT(bool value) {
+    modes.t = value;
+}
+
+void Channel::setModeK(bool value) {
+    modes.k = value;
+}
+
+void Channel::setModeL(bool value) {
+    modes.l = value;
 }
 
 void Channel::broadcast(const std::string& message, Client* exclude) {
