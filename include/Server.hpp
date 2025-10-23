@@ -5,6 +5,8 @@
 #include <vector>
 #include <string>
 #include <cstring>
+#include <cctype>
+#include <algorithm>
 #include <poll.h>
 #include <sys/socket.h>
 #include <sys/types.h>
@@ -60,10 +62,17 @@ class Server
         //parse commands
         
         //authentication
-        void authenticator(string line, Client* client, int client_fd);
+        void authenticator(const string& line, Client* client);
         bool checkNickname(stringList tokens, int client_fd) const;
         bool checkUsername(stringList tokens, int client_fd) const;
         bool checkPassword(stringList tokens, int client_fd) const;
+        
+        // Validation helpers
+        bool isValidNickname(const string& nickname) const;
+        bool isNicknameInUse(const string& nickname) const;
+        bool isValidUsername(const string& username) const;
+        void sendNumericalReply(int code, Client* client, const string& message) const;
+        void sendWelcome(Client* client) const;
 
         //commands
         void handleJoin(stringList tokens, Client* client);

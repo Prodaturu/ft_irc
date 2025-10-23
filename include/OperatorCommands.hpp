@@ -31,8 +31,7 @@ class OperatorCommands {
         void Topic(stringList tokens, Client* client, Channel* channel);
         void Mode(stringList tokens, Client* client);
         void Quit(stringList tokens, Client* client, Server* server);
-        void Join(stringList tokens, Client* client);
-        
+        void Join(stringList tokens, Client* client);      
 };
 
 #endif

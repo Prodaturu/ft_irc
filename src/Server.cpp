@@ -210,7 +210,8 @@ void Server::handleClientData(int client_fd)
 		
 		std::cout << "[RECV] FD=" << client_fd << ": \"" << line << "\"" << std::endl;
 		
-		authenticator(line, client, client_fd);
+		// Process authentication commands
+		authenticator(line, client);
 		
 		if (client->isAuthenticated() && !client->getNickname().empty() && !client->getUsername().empty())
 		{

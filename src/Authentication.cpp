@@ -13,74 +13,127 @@
 #include "../include/Server.hpp"
 #include "../include/OperatorCommands.hpp"
 
-void Server::authenticator(string line, Client *client, int client_fd)
+void Server::authenticator(const string& line, Client* client)
 {
-    std::string errorMessage = "ERROR :Unknown command\r\n";
     stringList tokens = parser(line);
     if (tokens.empty())
-        return ;
-
-    // Ignore CAP command (just to make it work wiht irssi client)
-    if (tokens[0] == "CAP")
         return;
 
-    if (tokens[0] == "PASS" && checkPassword(tokens, client_fd))
-        return (void)client->setAuthenticated(true);
-    else if (tokens[0] == "NICK" && checkNickname(tokens, client_fd))
-        return (void)client->setNickname(tokens[1]);
-    else if (tokens[0] == "USER" && checkUsername(tokens, client_fd))
+    if (tokens[0] == "CAP") 
     {
+        send(client->getFd(), ":server CAP * LS :\r\n", 20, 0);
+        return;
+    } 
+    else if (tokens[0] == "PASS") 
+    {
+        if (tokens.size() != 2) {
+            sendNumericalReply(461, client, "PASS :Not enough parameters");
+            return;
+        }
+        if (tokens[1] != _password) {
+            sendNumericalReply(464, client, ":Password incorrect");
+            return;
+        }
+        client->setAuthenticated(true);
+        return;
+    } 
+    else if (tokens[0] == "NICK") 
+    {
+        if (tokens.size() != 2) {
+            sendNumericalReply(461, client, "NICK :Not enough parameters");
+            return;
+        }
+        
+        if (!isValidNickname(tokens[1])) {
+            sendNumericalReply(432, client, tokens[1] + " :Erroneous nickname");
+            return;
+        }
+        
+        if (isNicknameInUse(tokens[1])) {
+            sendNumericalReply(433, client, tokens[1] + " :Nickname is already in use");
+            return;
+        }
+        
+        client->setNickname(tokens[1]);
+        return;
+    } 
+    else if (tokens[0] == "USER") 
+    {
+        if (tokens.size() != 5) {
+            sendNumericalReply(461, client, "USER :Not enough parameters");
+            return;
+        }
+        
+        if (!isValidUsername(tokens[1])) {
+            sendNumericalReply(468, client, ":Your username is invalid");
+            return;
+        }
+        
         client->setUsername(tokens[1]);
         client->setRealname(tokens[4]);
-        return ;
+        
+        if (client->isAuthenticated() && 
+            !client->getNickname().empty() && 
+            !client->getUsername().empty()) {
+            sendWelcome(client);
+        }
+        return;
     }
-    if (!client->isAuthenticated() || client->getNickname().empty() || client->getUsername().empty())
-        send(client_fd, errorMessage.c_str(), errorMessage.length(), 0);
+
+    if (!client->isAuthenticated() || 
+        client->getNickname().empty() || 
+        client->getUsername().empty()) {
+        sendNumericalReply(451, client, ":You have not registered");
+    }
 }
 
-bool Server::checkNickname(stringList tokens, int client_fd) const
+bool Server::isValidNickname(const string& nickname) const
 {
-    std::string errorMessage;
-
-    if (tokens.size() == 2)
-        return true;
-    else if (tokens.size() < 2)
-        errorMessage = "ERROR :NICKNAME command requires a nickname parameter\r\n";
-    else
-        errorMessage = "ERROR :NICKNAME command requires only one nickname parameter\r\n";
-    send(client_fd, errorMessage.c_str(), errorMessage.length(), 0);
-    return false;
+    if (nickname.empty() || nickname.length() > 9)
+        return false;
+    
+    if (!std::isalpha(nickname[0]))
+        return false;
+    
+    for (size_t i = 1; i < nickname.length(); i++) {
+        char c = nickname[i];
+        if (!std::isalnum(c) && c != '-' && c != '_')
+            return false;
+    }
+    
+    return true;
 }
 
-bool Server::checkUsername(stringList tokens, int client_fd) const
+bool Server::isNicknameInUse(const string& nickname) const
 {
-    std::string errorMessage;
-
-    // IRC USER command format: USER <user> <mode> <unused> :<realname>
-    // After split(), this becomes at least 4 tokens (USER, user, mode, unused)
-    if (tokens.size() == 5)
-        return true;
-    else
-        errorMessage = "ERROR :USERNAME command requires username parameter\r\n";
-    send(client_fd, errorMessage.c_str(), errorMessage.length(), 0);
-    return false;
-}
-
-bool Server::checkPassword(stringList tokens, int client_fd) const
-{
-    std::string errorMessage;
-
-    if (tokens.size() == 2)
-    {
-        if (tokens[1] != _password)
-            errorMessage = "ERROR :Invalid password\r\n";
-        else
+    for (size_t i = 0; i < _clients.size(); i++) {
+        if (_clients[i]->getNickname() == nickname)
             return true;
     }
-    else if (tokens.size() == 1)
-        errorMessage = "ERROR :PASSWORD command requires a password parameter\r\n";
-    else
-        errorMessage = "ERROR :PASSWORD command has too many parameters\r\n";
-    send(client_fd, errorMessage.c_str(), errorMessage.length(), 0);
     return false;
+}
+
+bool Server::isValidUsername(const string& username) const
+{
+    return !username.empty() && username.length() <= 10;
+}
+
+void Server::sendNumericalReply(int code, Client* client, const string& message) const
+{
+    string nick = client->getNickname().empty() ? "*" : client->getNickname();
+    
+    std::stringstream ss;
+    ss << ":server " << code << " " << nick << " " << message << "\r\n";
+    string reply = ss.str();
+    
+    send(client->getFd(), reply.c_str(), reply.length(), 0);
+}
+
+void Server::sendWelcome(Client* client) const
+{   
+    string nick = client->getNickname();
+    
+    sendNumericalReply(001, client, ":Welcome to the Internet Relay Network " + nick + "!");
+    sendNumericalReply(002, client, ":Your host is localhost, running version 1.0");
+    sendNumericalReply(003, client, ":This server was created today");
 }
