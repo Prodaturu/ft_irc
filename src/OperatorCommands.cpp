@@ -60,13 +60,47 @@ void Server::execCommand(string line, Client* client)
         return;
     }
     
-    if (tokens[0] == "WHO" || tokens[0] == "WHOIS" || tokens[0] == "PING" || 
-        tokens[0] == "PONG" || tokens[0] == "MOTD" || tokens[0] == "VERSION") {
+    // Handle PING - must respond with PONG to keep connection alive
+    if (tokens[0] == "PING") {
+        std::string pong_reply;
+        if (tokens.size() > 1) {
+            // Reply with the same token
+            pong_reply = ":localhost PONG localhost :" + tokens[1] + "\r\n";
+        } else {
+            pong_reply = ":localhost PONG localhost\r\n";
+        }
+        send(client->getFd(), pong_reply.c_str(), pong_reply.length(), 0);
+        std::cout << "[PING/PONG] Replied to PING from FD=" << client->getFd() 
+                  << " (" << client->getNickname() << ")" << std::endl;
+        return;
+    }
+    
+    // Ignore other non-essential commands
+    if (tokens[0] == "WHO" || tokens[0] == "WHOIS" || tokens[0] == "PONG" || 
+        tokens[0] == "MOTD" || tokens[0] == "VERSION") {
         return;
     }
     
     if (tokens.size() < 2)
         return;
+    
+    // INVITE has special syntax: INVITE <nickname> <channel>
+    // So channel is at tokens[2] instead of tokens[1]
+    if (tokens[0] == "INVITE") {
+        if (tokens.size() < 3) {
+            std::string error = ":localhost 461 " + client->getNickname() + " INVITE :Not enough parameters\r\n";
+            send(client->getFd(), error.c_str(), error.length(), 0);
+            return;
+        }
+        Channel* channel = getChannelByName(tokens[2]);
+        if (!channel) {
+            std::string error = ":localhost 403 " + client->getNickname() + " " + tokens[2] + " :No such channel\r\n";
+            send(client->getFd(), error.c_str(), error.length(), 0);
+            return;
+        }
+        OperatorCommands().Invite(tokens, client, channel, this);
+        return;
+    }
     
     Channel* channel = getChannelByName(tokens[1]);
     if (!channel) {
@@ -77,8 +111,6 @@ void Server::execCommand(string line, Client* client)
 
     if (tokens[0] == "KICK") 
         OperatorCommands().Kick(tokens, client, channel);
-    else if (tokens[0] == "INVITE")
-        OperatorCommands().Invite(tokens, client, channel, this);
     else if (tokens[0] == "TOPIC")
         OperatorCommands().Topic(tokens, client, channel);
 }
@@ -149,23 +181,9 @@ void OperatorCommands::Kick(stringList tokens, Client* client, Channel* channel)
 }
 
 void OperatorCommands::Invite(stringList tokens, Client* client, Channel* channel, Server* server) {
-
-    if (tokens.size() < 3) {
-        std::stringstream error;
-        error << ":server 461 " << client->getNickname() 
-              << " INVITE :Not enough parameters\r\n";
-        send(client->getFd(), error.str().c_str(), error.str().length(), 0);
-        return;
-    }
+    // Parameters already validated in execCommand routing
+    // tokens[0] = INVITE, tokens[1] = nickname, tokens[2] = channel name
     
-    if (tokens[2] != channel->getName()) {
-        std::stringstream error;
-        error << ":server 403 " << client->getNickname() 
-              << " " << tokens[2] << " :No such channel\r\n";
-        send(client->getFd(), error.str().c_str(), error.str().length(), 0);
-        return;
-    }
-
     if (!channel->isOperator(client)) {
         std::stringstream error;
         error << ":server 482 " << client->getNickname() 
@@ -210,12 +228,8 @@ void OperatorCommands::Invite(stringList tokens, Client* client, Channel* channe
     std::string confirm_msg = confirm_msg_stream.str();
     send(client->getFd(), confirm_msg.c_str(), confirm_msg.length(), 0);
 
-    std::stringstream broadcast_stream;
-    broadcast_stream << ":" << client->getNickname() << "!user@hostname"
-                     << " NOTICE " << channel->getName()
-                     << " :" << tokens[1] << " has been invited\r\n";
-    std::string broadcast_msg = broadcast_stream.str();
-    channel->broadcast(broadcast_msg, NULL);
+    std::cout << "[INVITE] " << client->getNickname() << " invited " 
+              << tokens[1] << " to " << channel->getName() << std::endl;
 }
 
 void OperatorCommands::Topic(stringList tokens, Client* client, Channel* channel) {

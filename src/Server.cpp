@@ -3,6 +3,9 @@
 #include <errno.h>
 #include <stdexcept>
 
+// External shutdown flag from main
+extern volatile sig_atomic_t g_shutdown;
+
 Server::Server(int port, const std::string& password): _server_fd(-1), _port(port), _password(password)
 {
 	setupSocket();
@@ -101,14 +104,19 @@ void Server::start()
 	std::cout << "Server started successfully!" << std::endl;
 
 	// infinite event loop so the server runs continuously
-	while ("martin is bulgarian and a beach. Run this server")
+	while (!g_shutdown)
 	{
 		// store the poll results indicating which fds are ready
 		int poll_count = poll(&_poll_fds[0], _poll_fds.size(), -1);
 		if (poll_count < 0)
 		{
 			if(errno == EINTR)
+			{
+				// Interrupted by signal, check shutdown flag
+				if (g_shutdown)
+					break;
 				continue;
+			}
 			throw std::runtime_error("Poll error");
 		}
 		// Check server socket for new connections
@@ -140,6 +148,45 @@ void Server::start()
 				handleClientData(_poll_fds[i].fd);
 		}
 	}
+	
+	// Graceful shutdown
+	std::cout << "\n[SHUTDOWN] Closing all client connections..." << std::endl;
+	for (size_t i = 0; i < _clients.size(); i++)
+	{
+		std::string quit_msg = "ERROR :Server shutting down\r\n";
+		send(_clients[i]->getFd(), quit_msg.c_str(), quit_msg.length(), 0);
+	}
+	std::cout << "[SHUTDOWN] Server stopped gracefully." << std::endl;
+}
+
+bool Server::safeSend(int fd, const string& message)
+{
+	ssize_t bytes_sent = send(fd, message.c_str(), message.length(), MSG_NOSIGNAL);
+	if (bytes_sent < 0)
+	{
+		if (errno == EAGAIN || errno == EWOULDBLOCK)
+		{
+			// Socket buffer full, try again later
+			std::cerr << "[WARNING] Send buffer full for FD=" << fd << std::endl;
+			return false;
+		}
+		if (errno == EPIPE || errno == ECONNRESET)
+		{
+			// Client disconnected
+			std::cout << "[DISCONNECT] Client FD=" << fd << " disconnected (EPIPE/ECONNRESET)" << std::endl;
+			return false;
+		}
+		std::cerr << "[ERROR] send() failed for FD=" << fd << ", errno=" << errno 
+		          << " (" << strerror(errno) << ")" << std::endl;
+		return false;
+	}
+	if (bytes_sent < (ssize_t)message.length())
+	{
+		std::cerr << "[WARNING] Partial send for FD=" << fd << ": " 
+		          << bytes_sent << "/" << message.length() << " bytes" << std::endl;
+		// In a production server, you'd queue the rest
+	}
+	return true;
 }
 
 void Server::acceptNewClient()
@@ -186,14 +233,15 @@ void Server::handleClientData(int client_fd)
 		if (errno == EAGAIN || errno == EWOULDBLOCK)
 			return;
 
-		std::cerr << "[ERROR] recv() failed for client " << client_fd << std::endl;
+		std::cerr << "[ERROR] recv() failed for client FD=" << client_fd 
+		          << ", errno=" << errno << " (" << strerror(errno) << ")" << std::endl;
 		removeClient(client_fd);
 		return ;
 	}
 
 	if (bytes_received == 0)
 	{
-		std::cout << "[DISCONNECT] Client " << client_fd << "closed connection" << std::endl;
+		std::cout << "[DISCONNECT] Client FD=" << client_fd << " closed connection gracefully" << std::endl;
 		removeClient(client_fd);
 		return ;
 	}
@@ -201,8 +249,26 @@ void Server::handleClientData(int client_fd)
 	buffer[bytes_received] = '\0';
 	Client* client = getClientByFd(client_fd);
 	if (!client)
+	{
+		std::cerr << "[ERROR] Client not found for FD=" << client_fd << std::endl;
 		return;
+	}
+	
+	// Debug: show what we received
+	std::cout << "[RECV] FD=" << client_fd << " received " << bytes_received << " bytes" << std::endl;
+	
 	client->appendToBuffer(std::string(buffer, bytes_received));
+	
+	// Check for buffer overflow (DoS protection)
+	if (client->getBuffer().length() > 4096)
+	{
+		std::cerr << "[ERROR] Client FD=" << client_fd << " buffer overflow (" 
+		          << client->getBuffer().length() << " bytes), disconnecting" << std::endl;
+		std::string error_msg = "ERROR :Input buffer overflow\r\n";
+		send(client_fd, error_msg.c_str(), error_msg.length(), MSG_NOSIGNAL);
+		removeClient(client_fd);
+		return;
+	}
 	while (client->hasCompleteLine()) {
 		std::string line = client->extractLine();
 		if (line.empty())

@@ -11,6 +11,7 @@
 /* ************************************************************************** */
 
 #include "../include/Server.hpp"
+#include "../include/Channel.hpp"
 #include "../include/OperatorCommands.hpp"
 
 void Server::authenticator(const string& line, Client* client)
@@ -44,6 +45,11 @@ void Server::authenticator(const string& line, Client* client)
             return;
         }
         
+        if (!client->isAuthenticated()) {
+            sendNumericalReply(451, client, ":You have not registered (send PASS first)");
+            return;
+        }
+        
         if (!isValidNickname(tokens[1])) {
             sendNumericalReply(432, client, tokens[1] + " :Erroneous nickname");
             return;
@@ -54,6 +60,27 @@ void Server::authenticator(const string& line, Client* client)
             return;
         }
         
+        // Broadcast nick change to all channels if already authenticated
+        if (client->isAuthenticated() && !client->getNickname().empty())
+        {
+            std::string old_nick = client->getNickname();
+            std::string nick_msg = ":" + old_nick + "!~" + client->getUsername() 
+                                 + "@localhost NICK " + tokens[1] + "\r\n";
+            
+            // Send to all channels the user is in
+            for (size_t i = 0; i < _channels.size(); i++)
+            {
+                if (_channels[i]->hasMember(client))
+                {
+                    std::vector<Client*> members = _channels[i]->getMembers();
+                    for (size_t j = 0; j < members.size(); j++)
+                    {
+                        send(members[j]->getFd(), nick_msg.c_str(), nick_msg.length(), 0);
+                    }
+                }
+            }
+        }
+        
         client->setNickname(tokens[1]);
         return;
     } 
@@ -61,6 +88,11 @@ void Server::authenticator(const string& line, Client* client)
     {
         if (tokens.size() != 5) {
             sendNumericalReply(461, client, "USER :Not enough parameters");
+            return;
+        }
+        
+        if (!client->isAuthenticated()) {
+            sendNumericalReply(451, client, ":You have not registered (send PASS first)");
             return;
         }
         

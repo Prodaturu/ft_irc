@@ -1,7 +1,27 @@
 #include <iostream>
 #include <string>
 #include <cstdlib>
+#include <csignal>
 #include "include/Server.hpp"
+
+// Global flag for signal handling
+volatile sig_atomic_t g_shutdown = 0;
+
+// Signal handler function
+void signalHandler(int signum)
+{
+	std::cout << "\n[SIGNAL] Received signal " << signum;
+	if (signum == SIGINT)
+		std::cout << " (SIGINT - Ctrl+C)";
+	else if (signum == SIGTERM)
+		std::cout << " (SIGTERM)";
+	else if (signum == SIGQUIT)
+		std::cout << " (SIGQUIT - Ctrl+\\)";
+	std::cout << " - Shutting down server gracefully..." << std::endl;
+	
+	// Set shutdown flag (server will detect this and exit cleanly)
+	g_shutdown = 1;
+}
 
 int main (int ac, char **av)
 {
@@ -32,18 +52,16 @@ int main (int ac, char **av)
 	
 	// Create & start the server
 	Server server(port,password);
+	
+	// Setup signal handlers
+	signal(SIGINT, signalHandler);   // Ctrl+C
+	signal(SIGTERM, signalHandler);  // Termination request
+	signal(SIGQUIT, signalHandler);  // Ctrl+\ (quit)
+	
+	std::cout << "[INFO] Signal handlers installed (Ctrl+C to exit gracefully)" << std::endl;
+	
 	try 
 	{
-		/* ------- Signal handling (pending implementation) & starting a server instance ------- */
-
-		//signal(SIGINT, Server::SignalHandler);
-		//signal(SIGQUIT, Server::SignalHandler);
-		// [] (int signum)
-		// {
-		//     std::cout << "\nSignal " << signum << " received, shutting down server." << std::endl;
-		//     std::exit(0);
-		// }
-
 		// Start the server
 		server.start();
 	}
@@ -52,6 +70,7 @@ int main (int ac, char **av)
 		std::cerr << "Error: " << e.what() << std::endl;
 		return 1;
 	}
+	
 	std::cout << "Server Closed!" << std::endl;
 	return 0;
 }

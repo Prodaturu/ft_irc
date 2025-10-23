@@ -73,9 +73,13 @@ class Server
         bool isValidUsername(const string& username) const;
         void sendNumericalReply(int code, Client* client, const string& message) const;
         void sendWelcome(Client* client) const;
+        
+        // Safe send helper
+        bool safeSend(int fd, const string& message);
 
         //commands
         void handleJoin(stringList tokens, Client* client);
+        void joinSingleChannel(const string& channel_name, const string& provided_key, Client* client);
         void handlePart(stringList tokens, Client* client);
         void handlePrivmsg(stringList tokens, Client* client);
 

@@ -1,4 +1,6 @@
 #include "../include/Channel.hpp"
+#include <sys/socket.h>
+#include <iostream>
 
 Channel::Channel(const std::string& name) : name(name), userLimit(0) {
     modes.i = false;
@@ -49,6 +51,8 @@ void Channel::addMember(Client* client) {
 }
 
 void Channel::removeMember(Client* client) {
+    bool wasOperator = isOperator(client);
+    
     for (size_t i = 0; i < members.size(); i++) {
         if (members[i] == client) {
             members.erase(members.begin() + i);
@@ -56,6 +60,19 @@ void Channel::removeMember(Client* client) {
         }
     }
     removeOperator(client);
+    
+    // if user +o leaves then set next user in line to +o 
+    if (wasOperator && !members.empty() && operators.empty()) {
+        Client* newOp = members[0];
+        addOperator(newOp);
+        std::cout << "[CHANNEL] Auto-promoted " << newOp->getNickname() 
+                  << " to operator in " << name << std::endl;
+        
+        std::string mode_msg = ":localhost MODE " + name + " +o " + newOp->getNickname() + "\r\n";
+        for (size_t i = 0; i < members.size(); i++) {
+            send(members[i]->getFd(), mode_msg.c_str(), mode_msg.length(), 0);
+        }
+    }
 }
 
 bool Channel::isOperator(Client* client) const {

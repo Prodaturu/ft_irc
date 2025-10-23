@@ -33,29 +33,13 @@ Channel* Server::createChannel(const string& name)
     return new_channel;
 }
 
-
-void Server::handleJoin(stringList tokens, Client* client)
+// Helper function to join a single channel
+void Server::joinSingleChannel(const string& channel_name, const string& provided_key, Client* client)
 {
-    if (!client->isAuthenticated() || client->getNickname().empty() || client->getUsername().empty())
-    {
-        std::string error = "ERROR :You must complete registration first (PASS, NICK, USER)\r\n";
-        send(client->getFd(), error.c_str(), error.length(), 0);
-        return;
-    }
-
-    if (tokens.size() < 2)
-    {
-        std::string error = "ERROR :JOIN command requires a channel name\r\n";
-        send(client->getFd(), error.c_str(), error.length(), 0);
-        return;
-    }
-
-    string channel_name = tokens[1];
-    string provided_key = (tokens.size() >= 3) ? tokens[2] : "";
-
     if (channel_name.empty() || (channel_name[0] != '#' && channel_name[0] != '&'))
     {
-        std::string error = "ERROR :Invalid channel name (must start with # or &)\r\n";
+        std::string error = "476 " + client->getNickname() + " " + channel_name 
+                          + " :Bad Channel Mask\r\n";
         send(client->getFd(), error.c_str(), error.length(), 0);
         return;
     }
@@ -64,7 +48,25 @@ void Server::handleJoin(stringList tokens, Client* client)
     if (!channel)
         channel = createChannel(channel_name);
 
-    //(ERR_BADCHANNELKEY 475)
+    // ERR_USERONCHANNEL (443)
+    if (channel->hasMember(client))
+    {
+        std::string error = ":localhost 443 " + client->getNickname() + " " + client->getNickname() 
+                          + " " + channel_name + " :is already on channel\r\n";
+        send(client->getFd(), error.c_str(), error.length(), 0);
+        return;
+    }
+
+    // ERR_INVITEONLYCHAN (473) - invite-only mode
+    if (channel->getModes().i && !channel->isInvited(client))
+    {
+        std::string error = ":localhost 473 " + client->getNickname() + " " 
+                          + channel_name + " :Cannot join channel (+i) - invite only\r\n";
+        send(client->getFd(), error.c_str(), error.length(), 0);
+        return;
+    }
+
+    // ERR_BADCHANNELKEY (475) - channel key
     if (!channel->getKey().empty() && channel->getKey() != provided_key)
     {
         std::string error = ":localhost 475 " + client->getNickname() + " " 
@@ -73,12 +75,19 @@ void Server::handleJoin(stringList tokens, Client* client)
         return;
     }
 
-    if (channel->hasMember(client))
+    // ERR_CHANNELISFULL (471) - user limit
+    if (channel->getModes().l && channel->getUserLimit() > 0 
+        && channel->getMemberCount() >= channel->getUserLimit())
     {
-        std::string error = "ERROR :You are already in channel " + channel_name + "\r\n";
+        std::string error = ":localhost 471 " + client->getNickname() + " " 
+                          + channel_name + " :Cannot join channel (+l) - channel is full\r\n";
         send(client->getFd(), error.c_str(), error.length(), 0);
         return;
     }
+
+    // Remove from invited list if present (invite consumed)
+    if (channel->isInvited(client))
+        channel->removeInvited(client);
 
     channel->addMember(client);
     
@@ -120,6 +129,66 @@ void Server::handleJoin(stringList tokens, Client* client)
     std::string end_of_names = ":localhost 366 " + client->getNickname() + " " 
                               + channel_name + " :End of /NAMES list\r\n";
     send(client->getFd(), end_of_names.c_str(), end_of_names.length(), 0);
+}
+
+void Server::handleJoin(stringList tokens, Client* client)
+{
+    if (!client->isAuthenticated() || client->getNickname().empty() || client->getUsername().empty())
+    {
+        std::string error = "ERROR :You must complete registration first (PASS, NICK, USER)\r\n";
+        send(client->getFd(), error.c_str(), error.length(), 0);
+        return;
+    }
+
+    if (tokens.size() < 2)
+    {
+        std::string error = "461 " + client->getNickname() + " JOIN :Not enough parameters\r\n";
+        send(client->getFd(), error.c_str(), error.length(), 0);
+        return;
+    }
+
+    // Parse comma-separated channel list
+    std::vector<string> channels;
+    std::vector<string> keys;
+    
+    string channel_list = tokens[1];
+    size_t pos = 0;
+    while (pos < channel_list.length())
+    {
+        size_t comma = channel_list.find(',', pos);
+        if (comma == string::npos)
+        {
+            channels.push_back(channel_list.substr(pos));
+            break;
+        }
+        channels.push_back(channel_list.substr(pos, comma - pos));
+        pos = comma + 1;
+    }
+
+    // Parse comma-separated keys if provided
+    if (tokens.size() >= 3)
+    {
+        string key_list = tokens[2];
+        pos = 0;
+        while (pos < key_list.length())
+        {
+            size_t comma = key_list.find(',', pos);
+            if (comma == string::npos)
+            {
+                keys.push_back(key_list.substr(pos));
+                break;
+            }
+            keys.push_back(key_list.substr(pos, comma - pos));
+            pos = comma + 1;
+        }
+    }
+
+    // Join each channel with corresponding key (or empty string)
+    for (size_t i = 0; i < channels.size(); i++)
+    {
+        string key = (i < keys.size()) ? keys[i] : "";
+        joinSingleChannel(channels[i], key, client);
+    }
 }
 
 
@@ -227,9 +296,49 @@ void Server::handlePart(stringList tokens, Client* client)
         return;
     }
 
-    std::string channelName = tokens[1];
-    std::string reason = "";
+    std::cout << "[PART DEBUG] tokens.size() = " << tokens.size() << std::endl;
+    for (size_t i = 0; i < tokens.size(); i++) {
+        std::cout << "[PART DEBUG] tokens[" << i << "] = '" << tokens[i] << "'" << std::endl;
+    }
 
+    // Parse comma-separated channel list
+    std::vector<string> channels;
+    string channel_list = tokens[1];
+    size_t pos = 0;
+    while (pos < channel_list.length())
+    {
+        size_t comma = channel_list.find(',', pos);
+        string channel_name;
+        if (comma == string::npos)
+        {
+            channel_name = channel_list.substr(pos);
+            // Trim whitespace
+            size_t start = channel_name.find_first_not_of(" \t\r\n");
+            size_t end = channel_name.find_last_not_of(" \t\r\n");
+            if (start != string::npos && end != string::npos)
+                channel_name = channel_name.substr(start, end - start + 1);
+            if (!channel_name.empty())
+                channels.push_back(channel_name);
+            break;
+        }
+        channel_name = channel_list.substr(pos, comma - pos);
+        // Trim whitespace
+        size_t start = channel_name.find_first_not_of(" \t\r\n");
+        size_t end = channel_name.find_last_not_of(" \t\r\n");
+        if (start != string::npos && end != string::npos)
+            channel_name = channel_name.substr(start, end - start + 1);
+        if (!channel_name.empty())
+            channels.push_back(channel_name);
+        pos = comma + 1;
+    }
+
+    std::cout << "[PART DEBUG] Parsed " << channels.size() << " channels:" << std::endl;
+    for (size_t i = 0; i < channels.size(); i++) {
+        std::cout << "[PART DEBUG] Channel " << i << ": '" << channels[i] << "'" << std::endl;
+    }
+
+    // Extract reason (applies to all channels)
+    std::string reason = "";
     if (tokens.size() >= 3)
     {
         reason = tokens[2];
@@ -239,53 +348,58 @@ void Server::handlePart(stringList tokens, Client* client)
             reason = reason.substr(1);
     }
 
-    Channel* channel = getChannelByName(channelName);
-    
-    // ERR_NOSUCHCHANNEL (403)
-    if (!channel)
+    // Part from each channel
+    for (size_t i = 0; i < channels.size(); i++)
     {
-        std::string err = "403 " + client->getNickname() + " " + channelName + " :No such channel\r\n";
-        send(client->getFd(), err.c_str(), err.length(), 0);
-        return;
-    }
-
-    // ERR_NOTONCHANNEL (442)
-    if (!channel->hasMember(client))
-    {
-        std::string err = "442 " + client->getNickname() + " " + channelName + " :You're not on that channel\r\n";
-        send(client->getFd(), err.c_str(), err.length(), 0);
-        return;
-    }
-
-    std::string part_msg = ":" + client->getNickname() + "!~" + client->getUsername() 
-                         + "@localhost PART " + channelName;
-    if (!reason.empty())
-        part_msg += " :" + reason;
-    part_msg += "\r\n";
-
-    std::vector<Client*> members = channel->getMembers();
-    for (size_t i = 0; i < members.size(); i++)
-    {
-        send(members[i]->getFd(), part_msg.c_str(), part_msg.length(), 0);
-    }
-
-    std::cout << "[PART] " << client->getNickname() << " left " << channelName;
-    if (!reason.empty())
-        std::cout << " (" << reason << ")";
-    std::cout << std::endl;
-
-    channel->removeMember(client);
-
-    if (channel->getMembers().empty())
-    {
-        std::cout << "[CHANNEL] Deleting empty channel: " << channelName << std::endl;
-        for (size_t i = 0; i < _channels.size(); i++)
+        string channelName = channels[i];
+        Channel* channel = getChannelByName(channelName);
+        
+        // ERR_NOSUCHCHANNEL (403)
+        if (!channel)
         {
-            if (_channels[i] == channel)
+            std::string err = "403 " + client->getNickname() + " " + channelName + " :No such channel\r\n";
+            send(client->getFd(), err.c_str(), err.length(), 0);
+            continue;
+        }
+
+        // ERR_NOTONCHANNEL (442)
+        if (!channel->hasMember(client))
+        {
+            std::string err = "442 " + client->getNickname() + " " + channelName + " :You're not on that channel\r\n";
+            send(client->getFd(), err.c_str(), err.length(), 0);
+            continue;
+        }
+
+        std::string part_msg = ":" + client->getNickname() + "!~" + client->getUsername() 
+                             + "@localhost PART " + channelName;
+        if (!reason.empty())
+            part_msg += " :" + reason;
+        part_msg += "\r\n";
+
+        std::vector<Client*> members = channel->getMembers();
+        for (size_t j = 0; j < members.size(); j++)
+        {
+            send(members[j]->getFd(), part_msg.c_str(), part_msg.length(), 0);
+        }
+
+        std::cout << "[PART] " << client->getNickname() << " left " << channelName;
+        if (!reason.empty())
+            std::cout << " (" << reason << ")";
+        std::cout << std::endl;
+
+        channel->removeMember(client);
+
+        if (channel->getMembers().empty())
+        {
+            std::cout << "[CHANNEL] Deleting empty channel: " << channelName << std::endl;
+            for (size_t j = 0; j < _channels.size(); j++)
             {
-                delete _channels[i];
-                _channels.erase(_channels.begin() + i);
-                break;
+                if (_channels[j] == channel)
+                {
+                    delete _channels[j];
+                    _channels.erase(_channels.begin() + j);
+                    break;
+                }
             }
         }
     }
