@@ -75,7 +75,6 @@ void Server::authenticator(const string& line, Client* client)
         if (client->isAuthenticated() && 
             !client->getNickname().empty() && 
             !client->getUsername().empty()) {
-            sendWelcome(client);
         }
         return;
     }
@@ -127,13 +126,4 @@ void Server::sendNumericalReply(int code, Client* client, const string& message)
     string reply = ss.str();
     
     send(client->getFd(), reply.c_str(), reply.length(), 0);
-}
-
-void Server::sendWelcome(Client* client) const
-{   
-    string nick = client->getNickname();
-    
-    sendNumericalReply(001, client, ":Welcome to the Internet Relay Network " + nick + "!");
-    sendNumericalReply(002, client, ":Your host is localhost, running version 1.0");
-    sendNumericalReply(003, client, ":This server was created today");
 }
