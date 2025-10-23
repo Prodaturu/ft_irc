@@ -29,6 +29,12 @@ void Server::execCommand(string line, Client* client)
         return ;
     }
     
+    // handle PART separately - leaving channels
+    if (tokens[0] == "PART") {
+        handlePart(tokens, client);
+        return;
+    }
+    
     // handle PRIVMSG separately becuase it can target channels or users
     if (tokens[0] == "PRIVMSG") {
         handlePrivmsg(tokens, client);
@@ -41,12 +47,31 @@ void Server::execCommand(string line, Client* client)
         return;
     }
     
+    if (tokens[0] == "MODE") {
+        if (tokens.size() >= 2 && (tokens[1][0] == '#' || tokens[1][0] == '&')) {
+            Channel* channel = getChannelByName(tokens[1]);
+            if (!channel) {
+                std::string error = ":localhost 403 " + client->getNickname() + " " + tokens[1] + " :No such channel\r\n";
+                send(client->getFd(), error.c_str(), error.length(), 0);
+                return;
+            }
+            OperatorCommands().Mode(tokens, client, channel, this);
+        }
+        return;
+    }
+    
+    if (tokens[0] == "WHO" || tokens[0] == "WHOIS" || tokens[0] == "PING" || 
+        tokens[0] == "PONG" || tokens[0] == "MOTD" || tokens[0] == "VERSION") {
+        return;
+    }
+    
     if (tokens.size() < 2)
         return;
     
     Channel* channel = getChannelByName(tokens[1]);
     if (!channel) {
-        send(client->getFd(), "ERROR: No such channel\r\n", 24, 0);
+        std::string error = ":localhost 403 " + client->getNickname() + " " + tokens[1] + " :No such channel\r\n";
+        send(client->getFd(), error.c_str(), error.length(), 0);
         return;
     }
 
@@ -56,8 +81,6 @@ void Server::execCommand(string line, Client* client)
         OperatorCommands().Invite(tokens, client, channel, this);
     else if (tokens[0] == "TOPIC")
         OperatorCommands().Topic(tokens, client, channel);
-    else if (tokens[0] == "MODE")
-        OperatorCommands().Mode(tokens, client, channel, this);
 }
 
 void OperatorCommands::Kick(stringList tokens, Client* client, Channel* channel) {

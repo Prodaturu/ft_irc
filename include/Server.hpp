@@ -76,6 +76,7 @@ class Server
 
         //commands
         void handleJoin(stringList tokens, Client* client);
+        void handlePart(stringList tokens, Client* client);
         void handlePrivmsg(stringList tokens, Client* client);
 
         //parse commands

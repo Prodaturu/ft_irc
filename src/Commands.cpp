@@ -215,3 +215,78 @@ void Server::handlePrivmsg(stringList tokens, Client* client)
         std::cout << "[PRIVMSG] " << client->getNickname() << " -> " << target << " (DM): " << message << std::endl;
     }
 }
+
+// PART Command - Leave a channel
+void Server::handlePart(stringList tokens, Client* client)
+{
+    // ERR_NEEDMOREPARAMS (461)
+    if (tokens.size() < 2)
+    {
+        std::string err = "461 " + client->getNickname() + " PART :Not enough parameters\r\n";
+        send(client->getFd(), err.c_str(), err.length(), 0);
+        return;
+    }
+
+    std::string channelName = tokens[1];
+    std::string reason = "";
+
+    if (tokens.size() >= 3)
+    {
+        reason = tokens[2];
+        for (size_t i = 3; i < tokens.size(); i++)
+            reason += " " + tokens[i];
+        if (!reason.empty() && reason[0] == ':')
+            reason = reason.substr(1);
+    }
+
+    Channel* channel = getChannelByName(channelName);
+    
+    // ERR_NOSUCHCHANNEL (403)
+    if (!channel)
+    {
+        std::string err = "403 " + client->getNickname() + " " + channelName + " :No such channel\r\n";
+        send(client->getFd(), err.c_str(), err.length(), 0);
+        return;
+    }
+
+    // ERR_NOTONCHANNEL (442)
+    if (!channel->hasMember(client))
+    {
+        std::string err = "442 " + client->getNickname() + " " + channelName + " :You're not on that channel\r\n";
+        send(client->getFd(), err.c_str(), err.length(), 0);
+        return;
+    }
+
+    std::string part_msg = ":" + client->getNickname() + "!~" + client->getUsername() 
+                         + "@localhost PART " + channelName;
+    if (!reason.empty())
+        part_msg += " :" + reason;
+    part_msg += "\r\n";
+
+    std::vector<Client*> members = channel->getMembers();
+    for (size_t i = 0; i < members.size(); i++)
+    {
+        send(members[i]->getFd(), part_msg.c_str(), part_msg.length(), 0);
+    }
+
+    std::cout << "[PART] " << client->getNickname() << " left " << channelName;
+    if (!reason.empty())
+        std::cout << " (" << reason << ")";
+    std::cout << std::endl;
+
+    channel->removeMember(client);
+
+    if (channel->getMembers().empty())
+    {
+        std::cout << "[CHANNEL] Deleting empty channel: " << channelName << std::endl;
+        for (size_t i = 0; i < _channels.size(); i++)
+        {
+            if (_channels[i] == channel)
+            {
+                delete _channels[i];
+                _channels.erase(_channels.begin() + i);
+                break;
+            }
+        }
+    }
+}
